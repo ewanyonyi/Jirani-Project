@@ -12,15 +12,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +53,7 @@ fun MediationScreen(
         RecentGuidance("Grazing route disagreement", "Families disagree about grazing access near the boundary."),
         RecentGuidance("Broken agreement", "An earlier agreement was not followed and tension is rising."),
     )
+    val hasConversation = uiState.messages.size > 1
 
     Column(
         modifier = modifier
@@ -65,43 +68,42 @@ fun MediationScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(bottom = 4.dp),
         ) {
-            item { ResolveHero(onQuickExit = onQuickExit) }
-            item { CalmAssistCard(onUse = { viewModel.useChip("I need help responding calmly.") }) }
-            item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(end = 8.dp),
-                ) {
-                    items(topics) { topic ->
-                        AssistChip(
-                            onClick = { viewModel.useChip("$topic concern") },
-                            label = { Text(topic) },
-                        )
-                    }
-                }
-            }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Recent guidance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("Local", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                }
-            }
-            items(recentGuidance) { guidance ->
-                RecentGuidanceCard(
-                    guidance = guidance,
-                    onClick = { viewModel.useRecentGuidance(guidance.prompt) },
-                )
-            }
-            if (uiState.messages.size > 1) {
-                item {
-                    Text("Conversation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                }
+            if (hasConversation) {
+                item { ChatHeader(onQuickExit = onQuickExit) }
                 items(uiState.messages) { message ->
                     ChatBubble(message)
+                }
+            } else {
+                item { ResolveHero(onQuickExit = onQuickExit) }
+                item { CalmAssistCard(onUse = { viewModel.useChip("I need help responding calmly.") }) }
+                item {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(end = 8.dp),
+                    ) {
+                        items(topics) { topic ->
+                            AssistChip(
+                                onClick = { viewModel.useChip("$topic concern") },
+                                label = { Text(topic) },
+                            )
+                        }
+                    }
+                }
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Recent guidance", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text("Local", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                items(recentGuidance) { guidance ->
+                    RecentGuidanceCard(
+                        guidance = guidance,
+                        onClick = { viewModel.useRecentGuidance(guidance.prompt) },
+                    )
                 }
             }
         }
@@ -116,6 +118,28 @@ fun MediationScreen(
             onInputChange = viewModel::updateInput,
             onSend = viewModel::submit,
         )
+    }
+}
+
+@Composable
+private fun ChatHeader(onQuickExit: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text("Jirani", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                text = "Conversation stays on this phone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        QuickExitButton(onClick = onQuickExit)
     }
 }
 
@@ -242,32 +266,69 @@ private fun ChatComposer(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Column(
-            modifier = Modifier.padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            OutlinedTextField(
-                value = input,
-                onValueChange = onInputChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 72.dp),
-                label = { Text("Message Jirani") },
-                placeholder = { Text("Example: Our neighbors blocked the water point.") },
-                minLines = 2,
-                maxLines = 4,
-            )
-            Button(
-                onClick = onSend,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                enabled = input.isNotBlank(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Bottom,
             ) {
-                Text("Send")
+                TextField(
+                    value = input,
+                    onValueChange = onInputChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp),
+                    placeholder = { Text("Message Jirani...") },
+                    minLines = 1,
+                    maxLines = 4,
+                    shape = MaterialTheme.shapes.medium,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        disabledContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                        unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    ),
+                )
+                Surface(
+                    modifier = Modifier.size(52.dp),
+                    shape = CircleShape,
+                    color = if (input.isNotBlank()) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    },
+                    contentColor = if (input.isNotBlank()) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                ) {
+                    IconButton(
+                        onClick = onSend,
+                        enabled = input.isNotBlank(),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_share_data),
+                            contentDescription = "Send message",
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
+            Text(
+                text = "Avoid names, phone numbers, and exact locations.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 6.dp),
+            )
         }
     }
 }

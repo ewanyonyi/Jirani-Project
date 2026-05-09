@@ -1,5 +1,6 @@
 package com.jirani.app.ui
 
+import android.app.Activity
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,6 +85,7 @@ fun JiraniApp() {
 
     JiraniTheme(darkTheme = darkTheme) {
         val navController = rememberNavController()
+        val activity = LocalContext.current as? Activity
         val drawerState = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         val backStackEntry by navController.currentBackStackEntryAsState()
@@ -90,6 +93,10 @@ fun JiraniApp() {
         val network by LocalFirstUiStore.network.collectAsStateWithLifecycle()
         val securitySettings by LocalFirstUiStore.securitySettings.collectAsStateWithLifecycle()
         val showChrome = currentRoute != DecoyRoute
+        val closeApp = {
+            activity?.finishAndRemoveTask()
+            Unit
+        }
 
         ModalNavigationDrawer(
             drawerState = drawerState,
@@ -205,10 +212,10 @@ fun JiraniApp() {
                     startDestination = JiraniDestination.Mediation.route,
                     modifier = Modifier.padding(innerPadding),
                 ) {
-                    composable(JiraniDestination.Mediation.route) { MediationScreen(onQuickExit = { navigateSingleTop(navController, DecoyRoute) }) }
-                    composable(JiraniDestination.Vault.route) { AgreementScreen(onQuickExit = { navigateSingleTop(navController, DecoyRoute) }) }
-                    composable(JiraniDestination.Safety.route) { ReportingScreen(onQuickExit = { navigateSingleTop(navController, DecoyRoute) }) }
-                    composable(JiraniDestination.Network.route) { SyncScreen(onQuickExit = { navigateSingleTop(navController, DecoyRoute) }) }
+                    composable(JiraniDestination.Mediation.route) { MediationScreen(onQuickExit = closeApp) }
+                    composable(JiraniDestination.Vault.route) { AgreementScreen(onQuickExit = closeApp) }
+                    composable(JiraniDestination.Safety.route) { ReportingScreen(onQuickExit = closeApp) }
+                    composable(JiraniDestination.Network.route) { SyncScreen(onQuickExit = closeApp) }
                     composable(SettingsRoute) { SettingsScreen() }
                     composable(DecoyRoute) {
                         DecoyScreen(
