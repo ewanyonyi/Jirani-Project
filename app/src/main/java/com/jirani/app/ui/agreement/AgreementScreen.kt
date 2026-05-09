@@ -7,49 +7,47 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.jirani.app.domain.agent.AgreementSummary
-import com.jirani.app.domain.agent.AgreementSummaryRequest
-import com.jirani.app.domain.agent.SummaryAgent
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jirani.app.R
+import com.jirani.app.data.local.AgreementItem
+import com.jirani.app.data.local.SyncStatus
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
 
 @Composable
 fun AgreementScreen(
     modifier: Modifier = Modifier,
-    summaryAgent: SummaryAgent = remember { SummaryAgent() },
+    viewModel: AgreementViewModel = viewModel(),
 ) {
-    var issue by rememberSaveable { mutableStateOf("") }
-    var commitments by rememberSaveable { mutableStateOf("") }
-    var summary by remember { mutableStateOf<AgreementSummary?>(null) }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         ScreenTitle(
             title = "Vault",
-            subtitle = "Local library of draft, signed, and pending-sync records.",
+            subtitle = "Encrypted local agreement records with sync status.",
         )
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -57,7 +55,7 @@ fun AgreementScreen(
             shape = MaterialTheme.shapes.medium,
         ) {
             Text(
-                text = "Encrypted local vault: ready for Room/SQLite",
+                text = "Local encrypted vault. BIP-39 recovery phrase ready for future auth.",
                 modifier = Modifier.padding(14.dp),
                 color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.labelMedium,
@@ -65,68 +63,94 @@ fun AgreementScreen(
             )
         }
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = uiState.search,
+            onValueChange = viewModel::updateSearch,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Local search") },
+            label = { Text("Local-only search") },
             placeholder = { Text("Search saved agreements") },
-            enabled = false,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             AssistChip(onClick = {}, label = { Text("Signed") })
             AssistChip(onClick = {}, label = { Text("Draft") })
             AssistChip(onClick = {}, label = { Text("Synced") })
         }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(uiState.agreements) { agreement ->
+                AgreementCard(agreement)
+            }
+        }
         OutlinedTextField(
-            value = issue,
-            onValueChange = { issue = it },
+            value = uiState.issue,
+            onValueChange = viewModel::updateIssue,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Issue") },
+            label = { Text("Agreement issue") },
             placeholder = { Text("Example: Shared water pump access") },
         )
         OutlinedTextField(
-            value = commitments,
-            onValueChange = { commitments = it },
+            value = uiState.commitments,
+            onValueChange = viewModel::updateCommitments,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp),
+                .height(110.dp),
             label = { Text("Commitments") },
-            placeholder = { Text("One commitment per line, using Party A and Party B.") },
-            maxLines = 6,
+            placeholder = { Text("One commitment per line. Use Party A and Party B.") },
+            maxLines = 4,
         )
         Button(
-            onClick = {
-                summary = summaryAgent.process(
-                    AgreementSummaryRequest(
-                        issue = issue,
-                        commitments = commitments.lines(),
-                    ),
-                )
-            },
+            onClick = viewModel::generateSummary,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Generate Neutral Summary")
+            Text("Save Local Draft")
         }
-        summary?.let { AgreementSummaryPanel(it) }
     }
 }
 
 @Composable
-private fun AgreementSummaryPanel(summary: AgreementSummary) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.medium,
-    ) {
+private fun AgreementCard(agreement: AgreementItem) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Pending Sync", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-            Text(summary.summary, fontWeight = FontWeight.SemiBold)
-            summary.actions.forEach { Text("- $it") }
-            Text(summary.followUp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(agreement.title, fontWeight = FontWeight.SemiBold)
+                Icon(
+                    painter = painterResource(R.drawable.ic_lock),
+                    contentDescription = "Encrypted",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(agreement.summary, style = MaterialTheme.typography.bodyMedium)
+            SyncBadge(agreement.syncStatus)
         }
+    }
+}
+
+@Composable
+private fun SyncBadge(syncStatus: SyncStatus) {
+    val label = when (syncStatus) {
+        SyncStatus.Local -> "Local"
+        SyncStatus.Mesh -> "Mesh"
+        SyncStatus.Cloud -> "Cloud"
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.secondary,
+        )
     }
 }
 

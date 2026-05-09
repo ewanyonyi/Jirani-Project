@@ -1,0 +1,64 @@
+package com.jirani.app.ui.mediation
+
+import androidx.lifecycle.ViewModel
+import com.jirani.app.data.local.LocalFirstUiStore
+import com.jirani.app.domain.agent.MediationAgent
+import com.jirani.app.domain.agent.MediationGuidance
+import com.jirani.app.domain.agent.MediationRequest
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+
+data class ChatMessage(
+    val sender: String,
+    val body: String,
+)
+
+data class MediationUiState(
+    val input: String = "",
+    val neutralizedText: String = "Safe version appears here as you prepare a message.",
+    val messages: List<ChatMessage> = listOf(
+        ChatMessage("Jirani", "Describe the dispute in neutral terms. I will help de-escalate it."),
+    ),
+    val guidance: MediationGuidance? = null,
+)
+
+class MediationViewModel : ViewModel() {
+    private val mediationAgent = MediationAgent()
+    private val _uiState = MutableStateFlow(MediationUiState())
+    val uiState: StateFlow<MediationUiState> = _uiState
+
+    fun updateInput(input: String) {
+        _uiState.update {
+            it.copy(
+                input = input,
+                neutralizedText = neutralize(input),
+            )
+        }
+    }
+
+    fun useChip(text: String) {
+        updateInput(text)
+    }
+
+    fun submit() {
+        val state = _uiState.value
+        val guidance = mediationAgent.process(MediationRequest(state.input))
+        _uiState.update {
+            it.copy(
+                input = "",
+                guidance = guidance,
+                messages = it.messages + ChatMessage("You", state.input.ifBlank { "No details provided yet." }) +
+                    ChatMessage("Jirani", guidance.recommendations.joinToString("\n")),
+            )
+        }
+        LocalFirstUiStore.enqueueSync()
+    }
+
+    private fun neutralize(input: String): String =
+        if (input.isBlank()) {
+            "Safe version appears here as you prepare a message."
+        } else {
+            "We need a calm discussion to clarify facts, reduce tension, and agree on fair next steps."
+        }
+}
