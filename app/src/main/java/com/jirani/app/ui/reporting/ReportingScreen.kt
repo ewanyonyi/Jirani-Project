@@ -255,15 +255,15 @@ private fun FuzzyMapCard() {
 private fun VerificationReminder() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.34f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Local verification reminder", fontWeight = FontWeight.SemiBold)
+            Text("Local verification reminder", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onTertiaryContainer)
             Text("Share only what you observed or trust. Mark rumors as unverified.")
         }
     }

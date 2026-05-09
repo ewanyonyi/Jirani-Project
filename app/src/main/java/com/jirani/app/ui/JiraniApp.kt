@@ -9,9 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -129,15 +127,15 @@ fun JiraniApp() {
                             Icon(
                                 painter = painterResource(R.drawable.ic_jirani_mark),
                                 contentDescription = "Jirani",
-                                tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(22.dp),
                             )
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                            navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                            actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                            navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                            actionIconContentColor = MaterialTheme.colorScheme.onSurface,
                         ),
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
@@ -173,7 +171,10 @@ fun JiraniApp() {
                 },
                 bottomBar = {
                     if (showChrome) {
-                        NavigationBar {
+                        NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 0.dp,
+                        ) {
                             JiraniDestination.entries.forEach { destination ->
                                 NavigationBarItem(
                                     selected = currentRoute == destination.route,
@@ -285,23 +286,23 @@ private fun JiraniDrawer(
 @Composable
 private fun DrawerHeader() {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 30.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 30.dp),
         horizontalArrangement = Arrangement.spacedBy(18.dp),
         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
         Surface(
             modifier = Modifier.size(58.dp),
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_jirani_mark),
                 contentDescription = null,
                 modifier = Modifier.padding(12.dp),
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = MaterialTheme.colorScheme.primary,
             )
         }
         Text(
@@ -318,7 +319,7 @@ private fun DrawerSection(title: String) {
     Text(
         text = title,
         modifier = Modifier.padding(start = 24.dp, top = 24.dp, bottom = 8.dp),
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
     )
 }
@@ -337,14 +338,14 @@ private fun DrawerItem(
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(22.dp),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
         ) {
             Icon(
                 painter = painterResource(iconRes),
                 contentDescription = null,
                 modifier = Modifier.size(30.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.primary,
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(

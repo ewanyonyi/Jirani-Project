@@ -1,6 +1,5 @@
 package com.jirani.app.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -13,35 +12,51 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ForestGreen80,
-    onPrimary = CharcoalText,
-    secondary = TerraCotta80,
-    tertiary = BurntOrange80,
-    error = BurntOrange80,
+    primary = JiraniGreen80,
+    onPrimary = JiraniDarkBackground,
+    primaryContainer = JiraniGreenDark,
+    onPrimaryContainer = JiraniGreenContainer,
+    secondary = JiraniSage80,
+    onSecondary = JiraniDarkBackground,
+    secondaryContainer = JiraniDarkSurfaceMuted,
+    onSecondaryContainer = JiraniSageContainer,
+    tertiary = JiraniTerracotta80,
+    onTertiary = JiraniDarkBackground,
+    tertiaryContainer = Color(0xFF5E2F1D),
+    onTertiaryContainer = JiraniTerracottaContainer,
+    background = JiraniDarkBackground,
+    onBackground = Color(0xFFE8EFE8),
+    surface = JiraniDarkSurface,
+    onSurface = Color(0xFFE8EFE8),
+    surfaceVariant = JiraniDarkSurfaceMuted,
+    onSurfaceVariant = Color(0xFFC8D0C8),
+    outline = Color(0xFF748076),
+    outlineVariant = Color(0xFF3E4941),
+    error = JiraniTerracotta80,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = ForestGreen40,
+    primary = JiraniGreen,
     onPrimary = Color.White,
-    secondary = TerraCotta40,
-    surface = SoftSand,
-    background = SoftSand,
-    onSurface = CharcoalText,
-    onSurfaceVariant = DeepGray,
-    onBackground = CharcoalText,
-    surfaceVariant = SandVariant,
-    error = BurntOrange40,
-    tertiary = BurntOrange40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
+    primaryContainer = JiraniGreenContainer,
+    onPrimaryContainer = JiraniOnGreenContainer,
+    secondary = JiraniSage,
     onSecondary = Color.White,
+    secondaryContainer = JiraniSageContainer,
+    onSecondaryContainer = Color(0xFF1F2D1E),
+    tertiary = JiraniTerracotta,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiaryContainer = JiraniTerracottaContainer,
+    onTertiaryContainer = Color(0xFF3B1F12),
+    background = JiraniBackground,
+    onBackground = JiraniCharcoal,
+    surface = JiraniSurface,
+    onSurface = JiraniCharcoal,
+    surfaceVariant = JiraniSurfaceWarm,
+    onSurfaceVariant = JiraniGray,
+    outline = JiraniOutline,
+    outlineVariant = Color(0xFFE2D6C6),
+    error = Color(0xFFB3261E),
 )
 
 @Composable
@@ -64,6 +79,7 @@ fun JiraniTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }

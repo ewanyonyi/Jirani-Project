@@ -98,8 +98,9 @@ private fun GhostSyncRadar(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.primaryContainer,
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Box(
             modifier = Modifier
@@ -112,13 +113,13 @@ private fun GhostSyncRadar(
                     .size(150.dp)
                     .graphicsLayer(scaleX = scale, scaleY = scale)
                     .alpha(0.22f),
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 shape = CircleShape,
             ) {}
             Surface(
                 modifier = Modifier.heightIn(min = 60.dp),
                 onClick = onScan,
-                color = if (peerDetected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.surfaceVariant,
+                color = if (peerDetected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
                 shape = MaterialTheme.shapes.medium,
             ) {
                 Box(

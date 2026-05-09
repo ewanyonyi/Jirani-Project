@@ -69,13 +69,14 @@ fun AgreementScreen(
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.primaryContainer,
                 shape = MaterialTheme.shapes.medium,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
                 Text(
                     text = "Private agreements are saved on this phone.",
                     modifier = Modifier.padding(12.dp),
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -208,9 +209,9 @@ private fun RecordStatusBadge(status: AgreementRecordStatus) {
     }
     Surface(
         color = if (status == AgreementRecordStatus.Signed) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+            MaterialTheme.colorScheme.primaryContainer
         } else {
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
+            MaterialTheme.colorScheme.tertiaryContainer
         },
         shape = MaterialTheme.shapes.small,
     ) {

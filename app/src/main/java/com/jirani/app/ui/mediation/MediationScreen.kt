@@ -150,9 +150,10 @@ private fun ResolveHero(onQuickExit: () -> Unit) {
 private fun CalmAssistCard(onUse: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -161,14 +162,14 @@ private fun CalmAssistCard(onUse: () -> Unit) {
         ) {
             Surface(
                 modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                 shape = MaterialTheme.shapes.medium,
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = painterResource(R.drawable.ic_nav_mediation),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(28.dp),
                     )
                 }
@@ -197,7 +198,7 @@ private fun RecentGuidanceCard(
         onClick = onClick,
         color = MaterialTheme.colorScheme.surface,
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
     ) {
         Row(
             modifier = Modifier.padding(12.dp),

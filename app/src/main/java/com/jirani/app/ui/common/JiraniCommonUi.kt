@@ -63,7 +63,7 @@ fun QuickExitButton(
         modifier = modifier.heightIn(min = 52.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.tertiary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            contentColor = MaterialTheme.colorScheme.onTertiary,
         ),
     ) {
         Text("Quick Exit", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
