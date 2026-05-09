@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.jirani.app.ui.mediation.MediationScreen
+import com.jirani.app.ui.JiraniApp
 import com.jirani.app.ui.theme.JiraniTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             JiraniTheme {
-                MediationScreen()
+                JiraniApp()
             }
         }
     }

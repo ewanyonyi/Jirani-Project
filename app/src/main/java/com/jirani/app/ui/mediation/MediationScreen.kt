@@ -13,7 +13,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,58 +32,56 @@ import com.jirani.app.ui.theme.JiraniTheme
 
 @Composable
 fun MediationScreen(
+    modifier: Modifier = Modifier,
     mediationAgent: MediationAgent = remember { MediationAgent() },
 ) {
     var description by rememberSaveable { mutableStateOf("") }
     var guidance by remember { mutableStateOf<MediationGuidance?>(null) }
 
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
+    Column(
+        modifier = modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = "Mediation Assistant",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "Generate calm, neutral guidance for a dispute without collecting personal identity.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
+            label = { Text("Conflict description") },
+            placeholder = { Text("Example: Access to the shared well is blocked.") },
+            maxLines = 6,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Text(
-                text = "Jirani",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                text = "Mediation Assistant",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp),
-                label = { Text("Conflict description") },
-                placeholder = { Text("Example: Access to the shared well is blocked.") },
-                maxLines = 6,
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+            Button(
+                onClick = {
+                    guidance = mediationAgent.process(MediationRequest(description))
+                },
             ) {
-                Button(
-                    onClick = {
-                        guidance = mediationAgent.process(MediationRequest(description))
-                    },
-                ) {
-                    Text("Generate Guidance")
-                }
+                Text("Generate Guidance")
             }
+        }
 
-            guidance?.let {
-                GuidancePanel(guidance = it)
-            }
+        guidance?.let {
+            GuidancePanel(guidance = it)
         }
     }
 }
