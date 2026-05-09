@@ -9,9 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,11 +58,15 @@ fun QuickExitButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedButton(
+    Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 44.dp),
+        modifier = modifier.heightIn(min = 52.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
     ) {
-        Text("Quick Exit", style = MaterialTheme.typography.labelMedium)
+        Text("Quick Exit", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -87,7 +92,8 @@ fun CalmModeCard(
             Text(
                 "The app keeps names and exact locations out by default.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium,
             )
         }
     }
@@ -99,19 +105,33 @@ fun ChoiceCard(
     selected: Boolean,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val borderColor = when {
+        selected -> MaterialTheme.colorScheme.primary
+        enabled -> MaterialTheme.colorScheme.outlineVariant
+        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f)
+    }
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp),
-        onClick = onClick,
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        onClick = if (enabled) onClick else ({}),
+        color = when {
+            selected -> MaterialTheme.colorScheme.primary
+            enabled -> MaterialTheme.colorScheme.surface
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        },
+        contentColor = when {
+            selected -> MaterialTheme.colorScheme.onPrimary
+            enabled -> MaterialTheme.colorScheme.onSurface
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+            if (selected) 2.dp else 1.dp,
+            borderColor,
         ),
     ) {
         Column(

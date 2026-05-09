@@ -22,9 +22,14 @@ data class MediationUiState(
     val neutralizedText: String = "Safe version appears here as you prepare a message.",
     val showToneCheck: Boolean = false,
     val messages: List<ChatMessage> = listOf(
-        ChatMessage("Jirani", "Describe the dispute in neutral terms. I will help de-escalate it."),
+        ChatMessage("Jirani", "Tell me what happened. I can help you respond calmly, summarize the issue, or suggest a safe next step."),
     ),
     val guidance: MediationGuidance? = null,
+)
+
+data class RecentGuidance(
+    val title: String,
+    val prompt: String,
 )
 
 class MediationViewModel : ViewModel() {
@@ -44,6 +49,10 @@ class MediationViewModel : ViewModel() {
 
     fun useChip(text: String) {
         updateInput(text)
+    }
+
+    fun useRecentGuidance(prompt: String) {
+        updateInput(prompt)
     }
 
     fun selectConflictType(type: String) {

@@ -12,6 +12,7 @@ Usage:
 - `./scripts/install-debug.sh`
 - `./scripts/install-debug.sh -d <deviceId>`
 - `./scripts/install-debug.sh -u`
+- `./scripts/install-debug.sh --no-launch`
 - `./scripts/install-debug.sh -d <deviceId> -u -r 5`
 
 The script supports:
@@ -19,6 +20,7 @@ The script supports:
 - selecting a specific device via `-d`
 - uninstalling the existing package first via `-u`
 - retrying install attempts via `-r`
+- launching the app automatically after install, unless `--no-launch` is passed
 
 ### `build-release-aab.sh`
 Builds a release Android App Bundle and optionally sets up signing properties.
