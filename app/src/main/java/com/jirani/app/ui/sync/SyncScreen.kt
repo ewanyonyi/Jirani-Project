@@ -1,5 +1,6 @@
 package com.jirani.app.ui.sync
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -16,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,6 +31,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jirani.app.data.local.SyncQueueItem
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
 
@@ -52,17 +53,18 @@ fun SyncScreen(
             title = "Network",
             subtitle = "BLE/Wi-Fi Direct peer scan and delayed local sync queue.",
         )
-        GhostSyncRadar(network.peerDetected)
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            NetworkStatCard("Nearby Neighbors", network.nearbyNeighbors.toString(), Modifier.weight(1f))
-            NetworkStatCard("Queue Size", network.queueSize.toString(), Modifier.weight(1f))
-        }
-        Button(
-            onClick = viewModel::togglePeerSimulation,
+        GhostSyncRadar(
+            peerDetected = network.peerDetected,
+            onScan = viewModel::togglePeerSimulation,
+        )
+        Text(
+            text = "${network.nearbyNeighbors} Neighbors Nearby",
             modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(if (network.peerDetected) "Stop Peer Simulation" else "Simulate Peer Detected")
-        }
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        NetworkStatCard("Items Waiting For Relay", network.queueSize.toString())
+        SyncQueueList(network.queueItems)
         SyncStatusCard(
             title = "Local-first queue",
             body = "UI actions save locally first. Mesh or cloud sync happens later as a side effect.",
@@ -75,7 +77,10 @@ fun SyncScreen(
 }
 
 @Composable
-private fun GhostSyncRadar(peerDetected: Boolean) {
+private fun GhostSyncRadar(
+    peerDetected: Boolean,
+    onScan: () -> Unit,
+) {
     val transition = rememberInfiniteTransition(label = "radar")
     val scale by transition.animateFloat(
         initialValue = 0.72f,
@@ -105,6 +110,7 @@ private fun GhostSyncRadar(peerDetected: Boolean) {
             ) {}
             Surface(
                 modifier = Modifier.size(82.dp),
+                onClick = onScan,
                 color = if (peerDetected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.surfaceVariant,
                 shape = CircleShape,
             ) {
@@ -130,6 +136,7 @@ private fun NetworkStatCard(
         modifier = modifier,
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -137,6 +144,59 @@ private fun NetworkStatCard(
         ) {
             Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(title, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+private fun SyncQueueList(items: List<SyncQueueItem>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Sync Queue", fontWeight = FontWeight.SemiBold)
+            items.take(4).forEachIndexed { index, item ->
+                QueueRow(
+                    index = index + 1,
+                    item = item,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QueueRow(
+    index: Int,
+    item: SyncQueueItem,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            modifier = Modifier.size(28.dp),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+            shape = CircleShape,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(index.toString(), style = MaterialTheme.typography.labelMedium)
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(item.title, fontWeight = FontWeight.SemiBold)
+            Text(
+                item.status,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -150,6 +210,7 @@ private fun SyncStatusCard(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

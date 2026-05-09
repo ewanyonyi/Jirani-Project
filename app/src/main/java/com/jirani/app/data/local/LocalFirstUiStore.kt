@@ -10,18 +10,31 @@ enum class SyncStatus {
     Cloud,
 }
 
+enum class AgreementRecordStatus {
+    Draft,
+    Signed,
+}
+
 data class AgreementItem(
     val id: String,
     val title: String,
     val summary: String,
     val syncStatus: SyncStatus,
+    val recordStatus: AgreementRecordStatus,
     val encrypted: Boolean = true,
+)
+
+data class SyncQueueItem(
+    val id: String,
+    val title: String,
+    val status: String,
 )
 
 data class NetworkSnapshot(
     val peerDetected: Boolean = false,
     val nearbyNeighbors: Int = 0,
     val queueSize: Int = 0,
+    val queueItems: List<SyncQueueItem> = emptyList(),
 )
 
 data class SecuritySettings(
@@ -36,12 +49,14 @@ object LocalFirstUiStore {
                 title = "Water Access Draft",
                 summary = "Party A and Party B review shared pump access after three days.",
                 syncStatus = SyncStatus.Local,
+                recordStatus = AgreementRecordStatus.Draft,
             ),
             AgreementItem(
                 id = "grazing-route",
                 title = "Grazing Route Record",
                 summary = "Community members keep a temporary boundary route while facts are verified.",
                 syncStatus = SyncStatus.Mesh,
+                recordStatus = AgreementRecordStatus.Signed,
             ),
         ),
     )
@@ -52,6 +67,10 @@ object LocalFirstUiStore {
             peerDetected = false,
             nearbyNeighbors = 0,
             queueSize = 2,
+            queueItems = listOf(
+                SyncQueueItem("water-access", "Water access draft", "Waiting for relay"),
+                SyncQueueItem("safety-check", "Safety alert summary", "Local only"),
+            ),
         ),
     )
     val network: StateFlow<NetworkSnapshot> = _network
@@ -67,6 +86,7 @@ object LocalFirstUiStore {
                     title = title.ifBlank { "Untitled Agreement" },
                     summary = summary,
                     syncStatus = SyncStatus.Local,
+                    recordStatus = AgreementRecordStatus.Draft,
                 ),
             ) + current
         }
@@ -74,7 +94,17 @@ object LocalFirstUiStore {
     }
 
     fun enqueueSync() {
-        _network.update { it.copy(queueSize = it.queueSize + 1) }
+        _network.update {
+            val nextItem = SyncQueueItem(
+                id = "queue-${it.queueSize + 1}",
+                title = "New local record",
+                status = "Waiting for relay",
+            )
+            it.copy(
+                queueSize = it.queueSize + 1,
+                queueItems = listOf(nextItem) + it.queueItems,
+            )
+        }
     }
 
     fun togglePeerSimulation() {
@@ -82,7 +112,7 @@ object LocalFirstUiStore {
             val nextDetected = !it.peerDetected
             it.copy(
                 peerDetected = nextDetected,
-                nearbyNeighbors = if (nextDetected) 3 else 0,
+                nearbyNeighbors = if (nextDetected) 5 else 0,
             )
         }
     }

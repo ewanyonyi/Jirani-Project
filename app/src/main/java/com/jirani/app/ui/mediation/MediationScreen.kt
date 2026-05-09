@@ -1,5 +1,7 @@
 package com.jirani.app.ui.mediation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -37,7 +40,7 @@ fun MediationScreen(
     val chips = listOf(
         "Water Access" to "There is tension about shared water access.",
         "Grazing Rights" to "Families disagree about grazing access near the boundary.",
-        "Border Crossing" to "People are worried about safe border crossing.",
+        "Land Dispute" to "Neighbors disagree about land use and boundary facts.",
     )
 
     Column(
@@ -46,13 +49,7 @@ fun MediationScreen(
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("Mediation", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        Text(
-            text = "Chat-style de-escalation with local neutralizer guidance.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        ToneCheckCard(uiState.neutralizedText)
+        ScreenIntro()
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(end = 12.dp),
@@ -74,6 +71,12 @@ fun MediationScreen(
                 ChatBubble(message)
             }
         }
+        AnimatedVisibility(visible = uiState.showToneCheck) {
+            ToneCheckCard(
+                neutralizedText = uiState.neutralizedText,
+                onUse = viewModel::useNeutralizedText,
+            )
+        }
         OutlinedTextField(
             value = uiState.input,
             onValueChange = viewModel::updateInput,
@@ -94,15 +97,31 @@ fun MediationScreen(
 }
 
 @Composable
-private fun ToneCheckCard(neutralizedText: String) {
+private fun ScreenIntro() {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Mediation", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+        Text(
+            text = "A guided thread for calmer wording and next steps.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun ToneCheckCard(
+    neutralizedText: String,
+    onUse: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = "Tone Check",
@@ -111,9 +130,12 @@ private fun ToneCheckCard(neutralizedText: String) {
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Neutralized: $neutralizedText",
+                text = neutralizedText,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            OutlinedButton(onClick = onUse) {
+                Text("Use Safe Version")
+            }
         }
     }
 }
@@ -129,6 +151,7 @@ private fun ChatBubble(message: ChatMessage) {
             modifier = Modifier.fillMaxWidth(0.84f),
             color = if (fromUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
             shape = MaterialTheme.shapes.medium,
+            border = if (fromUser) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(
                 modifier = Modifier.padding(12.dp),

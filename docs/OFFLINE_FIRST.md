@@ -10,6 +10,7 @@ The app is designed to work without internet access for core mediation, agreemen
 - Sync manager for delayed data reconciliation.
 - Conflict-aware record versions for repeated peer exchanges.
 - Placeholder support for BLE, Wi-Fi Direct, Nearby Connections, or user-driven Android sharing.
+- Transport-agnostic information flow from device sync queues to an optional trusted Rust analytics gateway.
 
 ## Benefits
 - Works in low-connectivity and disrupted environments.
@@ -21,3 +22,4 @@ The app is designed to work without internet access for core mediation, agreemen
 - Start with local-only records and simulated sync status.
 - Add sync envelopes before adding transport-specific code.
 - Keep transport adapters replaceable so BLE/Wi-Fi Direct/Ghost-Sync concepts can evolve without changing domain records.
+- Use the device-to-device and optional gateway flow in [INFORMATION_FLOW.md](INFORMATION_FLOW.md) for report sharing and aggregation design.

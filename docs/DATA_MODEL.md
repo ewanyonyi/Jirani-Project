@@ -11,8 +11,10 @@
 - DisputeRecord: id, description, concerns, status, createdAt, updatedAt
 - MediationGuidanceRecord: id, disputeId, summary, recommendations, safetyNote, createdAt
 - AgreementRecord: id, disputeId, neutralSummary, commitments, reviewDate, createdAt
-- SafetyReportRecord: id, threatType, generalLocation, timeWindow, incidentSummary, verificationStatus, createdAt
-- SyncEnvelope: id, recordType, recordId, version, lastModifiedAt, syncState
+- SafetyReportRecord: id, threatType, generalLocation, timeWindow, incidentSummary, verificationStatus, expiresAt, createdAt
+- SyncEnvelope: id, recordType, recordId, contentHash, version, lastModifiedAt, audienceTier, syncState
+
+All `id` values should be cryptographically random non-PII identifiers. They must not be derived from phone numbers, device IDs, network addresses, GPS, user names, or exact timestamps.
 
 ## Relationships
 - DisputeRecord can have many MediationGuidanceRecords.
@@ -25,3 +27,4 @@
 - Sensitive fields: encrypted storage pattern before real-world use.
 - Sync: delayed peer-to-peer exchange with conflict-aware envelopes.
 - Cloud/backend: optional prototype extension, not required for core participation.
+- Information flow: see `INFORMATION_FLOW.md` for BLE/Nearby/Wi-Fi Direct enabled and disabled sharing paths through an optional trusted Rust analytics gateway.

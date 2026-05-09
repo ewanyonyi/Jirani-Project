@@ -3,6 +3,8 @@
 ## Direction
 The Android MVP is local-first and does not require a central API. Any backend API is optional and should support gateway sync or anonymized analytics without replacing offline participation.
 
+The full device-to-device and optional OSF-hosted Rust gateway flow is documented in [docs/INFORMATION_FLOW.md](docs/INFORMATION_FLOW.md).
+
 ## Optional Future Endpoints
 - POST /sync/envelopes: Submit encrypted or minimized sync envelopes.
 - GET /sync/envelopes: Fetch envelopes available for a trusted community gateway.

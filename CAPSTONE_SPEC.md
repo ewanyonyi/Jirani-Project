@@ -186,6 +186,8 @@ Jirani supports local device-to-device sharing through platform-specific APIs an
 
 This cross-platform approach preserves offline-first resilience while allowing optional user-driven sharing for lightweight data exchange.
 
+The detailed information flow from device-to-device sync queues to the optional OSF-hosted Rust analytics gateway is documented in `docs/INFORMATION_FLOW.md`, including behavior when BLE, Nearby Share, or Wi-Fi Direct are enabled or disabled.
+
 ## Why Kotlin + Jetpack Compose
 
 Jirani prioritizes performance and usability on low-spec Android devices. Kotlin with Jetpack Compose provides a native Android experience with better performance, smaller runtime overhead, and deeper access to device capabilities compared to heavier cross-platform frameworks.

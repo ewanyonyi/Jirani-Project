@@ -1,5 +1,7 @@
 package com.jirani.app.ui.agreement
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,11 +9,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -28,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jirani.app.R
 import com.jirani.app.data.local.AgreementItem
+import com.jirani.app.data.local.AgreementRecordStatus
 import com.jirani.app.data.local.SyncStatus
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
@@ -70,9 +73,16 @@ fun AgreementScreen(
             placeholder = { Text("Search saved agreements") },
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = {}, label = { Text("Signed") })
-            AssistChip(onClick = {}, label = { Text("Draft") })
-            AssistChip(onClick = {}, label = { Text("Synced") })
+            AssistChip(
+                onClick = { viewModel.toggleFilter(AgreementRecordStatus.Signed) },
+                label = { Text("Signed") },
+                leadingIcon = { FilterDot(active = uiState.selectedFilter == AgreementRecordStatus.Signed) },
+            )
+            AssistChip(
+                onClick = { viewModel.toggleFilter(AgreementRecordStatus.Draft) },
+                label = { Text("Draft") },
+                leadingIcon = { FilterDot(active = uiState.selectedFilter == AgreementRecordStatus.Draft) },
+            )
         }
         LazyColumn(
             modifier = Modifier
@@ -112,7 +122,12 @@ fun AgreementScreen(
 
 @Composable
 private fun AgreementCard(agreement: AgreementItem) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
         Column(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -129,30 +144,81 @@ private fun AgreementCard(agreement: AgreementItem) {
                 )
             }
             Text(agreement.summary, style = MaterialTheme.typography.bodyMedium)
-            SyncBadge(agreement.syncStatus)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                RecordStatusBadge(agreement.recordStatus)
+                SyncBadge(agreement.syncStatus)
+            }
         }
     }
 }
 
 @Composable
-private fun SyncBadge(syncStatus: SyncStatus) {
-    val label = when (syncStatus) {
-        SyncStatus.Local -> "Local"
-        SyncStatus.Mesh -> "Mesh"
-        SyncStatus.Cloud -> "Cloud"
+private fun FilterDot(active: Boolean) {
+    Surface(
+        modifier = Modifier.size(8.dp),
+        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        shape = MaterialTheme.shapes.extraSmall,
+    ) {}
+}
+
+@Composable
+private fun RecordStatusBadge(status: AgreementRecordStatus) {
+    val label = when (status) {
+        AgreementRecordStatus.Draft -> "Draft"
+        AgreementRecordStatus.Signed -> "Signed"
     }
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = if (status == AgreementRecordStatus.Signed) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        } else {
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.16f)
+        },
         shape = MaterialTheme.shapes.small,
     ) {
         Text(
             text = label,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
+
+@Composable
+private fun SyncBadge(syncStatus: SyncStatus) {
+    val badge = when (syncStatus) {
+        SyncStatus.Local -> SyncBadgeUi(R.drawable.ic_incoming_data, "Local Only", MaterialTheme.colorScheme.tertiary)
+        SyncStatus.Mesh -> SyncBadgeUi(R.drawable.ic_mesh_status, "Mesh Synced", MaterialTheme.colorScheme.secondary)
+        SyncStatus.Cloud -> SyncBadgeUi(R.drawable.ic_share_data, "Gateway Uploaded", MaterialTheme.colorScheme.primary)
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                painter = painterResource(badge.iconRes),
+                contentDescription = null,
+                tint = badge.color,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                text = badge.label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+private data class SyncBadgeUi(
+    @DrawableRes val iconRes: Int,
+    val label: String,
+    val color: androidx.compose.ui.graphics.Color,
+)
 
 @Preview(showBackground = true)
 @Composable

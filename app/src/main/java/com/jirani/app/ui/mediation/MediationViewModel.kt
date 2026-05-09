@@ -17,6 +17,7 @@ data class ChatMessage(
 data class MediationUiState(
     val input: String = "",
     val neutralizedText: String = "Safe version appears here as you prepare a message.",
+    val showToneCheck: Boolean = false,
     val messages: List<ChatMessage> = listOf(
         ChatMessage("Jirani", "Describe the dispute in neutral terms. I will help de-escalate it."),
     ),
@@ -33,6 +34,7 @@ class MediationViewModel : ViewModel() {
             it.copy(
                 input = input,
                 neutralizedText = neutralize(input),
+                showToneCheck = looksHeated(input),
             )
         }
     }
@@ -48,6 +50,7 @@ class MediationViewModel : ViewModel() {
             it.copy(
                 input = "",
                 guidance = guidance,
+                showToneCheck = false,
                 messages = it.messages + ChatMessage("You", state.input.ifBlank { "No details provided yet." }) +
                     ChatMessage("Jirani", guidance.recommendations.joinToString("\n")),
             )
@@ -61,4 +64,24 @@ class MediationViewModel : ViewModel() {
         } else {
             "We need a calm discussion to clarify facts, reduce tension, and agree on fair next steps."
         }
+
+    fun useNeutralizedText() {
+        _uiState.update {
+            it.copy(
+                input = it.neutralizedText,
+                showToneCheck = false,
+            )
+        }
+    }
+
+    private fun looksHeated(input: String): Boolean {
+        val lower = input.lowercase()
+        return lower.contains("angry") ||
+            lower.contains("fight") ||
+            lower.contains("blocked") ||
+            lower.contains("stole") ||
+            lower.contains("threat") ||
+            lower.contains("attack") ||
+            input.count { it == '!' } >= 2
+    }
 }

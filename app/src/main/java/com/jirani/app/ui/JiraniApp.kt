@@ -6,11 +6,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -70,7 +71,6 @@ fun JiraniApp() {
         val navController = rememberNavController()
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route ?: JiraniDestination.Mediation.route
-        val currentDestination = JiraniDestination.entries.firstOrNull { it.route == currentRoute }
         val network by LocalFirstUiStore.network.collectAsStateWithLifecycle()
         val securitySettings by LocalFirstUiStore.securitySettings.collectAsStateWithLifecycle()
         val showChrome = currentRoute != DecoyRoute
@@ -80,10 +80,11 @@ fun JiraniApp() {
                 if (showChrome) {
                     CenterAlignedTopAppBar(
                         title = {
-                            Text(
-                                text = currentDestination?.title ?: "Settings",
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                            Icon(
+                                painter = painterResource(R.drawable.ic_jirani_mark),
+                                contentDescription = "Jirani",
+                                tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.72f),
+                                modifier = Modifier.size(22.dp),
                             )
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -105,7 +106,7 @@ fun JiraniApp() {
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_calculator),
-                                    contentDescription = "Open calculator",
+                                    contentDescription = "Open decoy",
                                 )
                             }
                         },
@@ -185,9 +186,16 @@ fun JiraniApp() {
             },
             floatingActionButton = {
                 if (showChrome) {
-                    FloatingActionButton(onClick = { navigateSingleTop(navController, JiraniDestination.Safety.route) }) {
-                        Text("!")
-                    }
+                    ExtendedFloatingActionButton(
+                        onClick = { navigateSingleTop(navController, JiraniDestination.Safety.route) },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_shield_report),
+                                contentDescription = null,
+                            )
+                        },
+                        text = { Text("Report") },
+                    )
                 }
             },
             bottomBar = {
@@ -258,8 +266,8 @@ private fun MeshStatusIcon(
         Icon(
             painter = painterResource(R.drawable.ic_mesh_status),
             contentDescription = if (peerDetected) "Peer detected" else "No peer detected",
-            tint = if (peerDetected) MaterialTheme.colorScheme.onPrimary else Color.LightGray,
-            modifier = Modifier.graphicsLayer(alpha = if (peerDetected) alpha else 0.65f),
+            tint = if (peerDetected) Color(0xFF69F0AE) else Color.LightGray,
+            modifier = Modifier.graphicsLayer(alpha = if (peerDetected) alpha else 0.48f),
         )
     }
 }
