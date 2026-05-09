@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +21,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +33,7 @@ import com.jirani.app.R
 import com.jirani.app.data.local.AgreementItem
 import com.jirani.app.data.local.AgreementRecordStatus
 import com.jirani.app.data.local.SyncStatus
+import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
 
@@ -39,83 +41,116 @@ import com.jirani.app.ui.theme.JiraniTheme
 fun AgreementScreen(
     modifier: Modifier = Modifier,
     viewModel: AgreementViewModel = viewModel(),
+    onQuickExit: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 12.dp),
     ) {
-        ScreenTitle(
-            title = "Vault",
-            subtitle = "Encrypted local agreement records with sync status.",
-        )
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.primary,
-            shape = MaterialTheme.shapes.medium,
-        ) {
-            Text(
-                text = "Local encrypted vault. BIP-39 recovery phrase ready for future auth.",
-                modifier = Modifier.padding(14.dp),
-                color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-        OutlinedTextField(
-            value = uiState.search,
-            onValueChange = viewModel::updateSearch,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Local-only search") },
-            placeholder = { Text("Search saved agreements") },
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(
-                onClick = { viewModel.toggleFilter(AgreementRecordStatus.Signed) },
-                label = { Text("Signed") },
-                leadingIcon = { FilterDot(active = uiState.selectedFilter == AgreementRecordStatus.Signed) },
-            )
-            AssistChip(
-                onClick = { viewModel.toggleFilter(AgreementRecordStatus.Draft) },
-                label = { Text("Draft") },
-                leadingIcon = { FilterDot(active = uiState.selectedFilter == AgreementRecordStatus.Draft) },
-            )
-        }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(uiState.agreements) { agreement ->
-                AgreementCard(agreement)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                ScreenTitle(
+                    title = "Agreements",
+                    subtitle = "Private drafts saved here.",
+                    modifier = Modifier.weight(1f),
+                )
+                QuickExitButton(onClick = onQuickExit)
             }
         }
-        OutlinedTextField(
-            value = uiState.issue,
-            onValueChange = viewModel::updateIssue,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Agreement issue") },
-            placeholder = { Text("Example: Shared water pump access") },
-        )
-        OutlinedTextField(
-            value = uiState.commitments,
-            onValueChange = viewModel::updateCommitments,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(110.dp),
-            label = { Text("Commitments") },
-            placeholder = { Text("One commitment per line. Use Party A and Party B.") },
-            maxLines = 4,
-        )
-        Button(
-            onClick = viewModel::generateSummary,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Save Local Draft")
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Text(
+                    text = "Private agreements are saved on this phone.",
+                    modifier = Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        item {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.medium,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            ) {
+                Text(
+                    text = "No names are needed in the app. Add them later offline only if both sides agree.",
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+        }
+        item {
+            OutlinedTextField(
+                value = uiState.search,
+                onValueChange = viewModel::updateSearch,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Search saved agreements") },
+                singleLine = true,
+            )
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AssistChip(
+                    onClick = { viewModel.toggleFilter(AgreementRecordStatus.Signed) },
+                    label = { Text("Agreed") },
+                    leadingIcon = { FilterDot(active = uiState.selectedFilter == AgreementRecordStatus.Signed) },
+                )
+                AssistChip(
+                    onClick = { viewModel.toggleFilter(AgreementRecordStatus.Draft) },
+                    label = { Text("Draft") },
+                    leadingIcon = { FilterDot(active = uiState.selectedFilter == AgreementRecordStatus.Draft) },
+                )
+            }
+        }
+        items(uiState.agreements) { agreement ->
+            AgreementCard(agreement)
+        }
+        item {
+            OutlinedTextField(
+                value = uiState.issue,
+                onValueChange = viewModel::updateIssue,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("What is this about?") },
+                placeholder = { Text("Example: shared water pump") },
+                singleLine = true,
+            )
+        }
+        item {
+            OutlinedTextField(
+                value = uiState.commitments,
+                onValueChange = viewModel::updateCommitments,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 92.dp),
+                label = { Text("What was agreed?") },
+                placeholder = { Text("Use Party A and Party B.") },
+                minLines = 2,
+                maxLines = 4,
+            )
+        }
+        item {
+            Button(
+                onClick = viewModel::generateSummary,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Save anonymous draft")
+            }
         }
     }
 }
@@ -136,7 +171,11 @@ private fun AgreementCard(agreement: AgreementItem) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Text(agreement.title, fontWeight = FontWeight.SemiBold)
+                Text(
+                    agreement.title,
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.SemiBold,
+                )
                 Icon(
                     painter = painterResource(R.drawable.ic_lock),
                     contentDescription = "Encrypted",
@@ -165,7 +204,7 @@ private fun FilterDot(active: Boolean) {
 private fun RecordStatusBadge(status: AgreementRecordStatus) {
     val label = when (status) {
         AgreementRecordStatus.Draft -> "Draft"
-        AgreementRecordStatus.Signed -> "Signed"
+        AgreementRecordStatus.Signed -> "Agreed"
     }
     Surface(
         color = if (status == AgreementRecordStatus.Signed) {
@@ -187,9 +226,9 @@ private fun RecordStatusBadge(status: AgreementRecordStatus) {
 @Composable
 private fun SyncBadge(syncStatus: SyncStatus) {
     val badge = when (syncStatus) {
-        SyncStatus.Local -> SyncBadgeUi(R.drawable.ic_incoming_data, "Local Only", MaterialTheme.colorScheme.tertiary)
-        SyncStatus.Mesh -> SyncBadgeUi(R.drawable.ic_mesh_status, "Mesh Synced", MaterialTheme.colorScheme.secondary)
-        SyncStatus.Cloud -> SyncBadgeUi(R.drawable.ic_share_data, "Gateway Uploaded", MaterialTheme.colorScheme.primary)
+        SyncStatus.Local -> SyncBadgeUi(R.drawable.ic_incoming_data, "Saved only on this phone", MaterialTheme.colorScheme.tertiary)
+        SyncStatus.Mesh -> SyncBadgeUi(R.drawable.ic_mesh_status, "Shared nearby", MaterialTheme.colorScheme.secondary)
+        SyncStatus.Cloud -> SyncBadgeUi(R.drawable.ic_share_data, "Shared", MaterialTheme.colorScheme.primary)
     }
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,

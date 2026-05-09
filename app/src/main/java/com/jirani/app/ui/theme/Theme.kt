@@ -27,6 +27,7 @@ private val LightColorScheme = lightColorScheme(
     surface = SoftSand,
     background = SoftSand,
     onSurface = CharcoalText,
+    onSurfaceVariant = DeepGray,
     onBackground = CharcoalText,
     surfaceVariant = SandVariant,
     error = BurntOrange40,

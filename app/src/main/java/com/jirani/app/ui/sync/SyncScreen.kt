@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jirani.app.data.local.SyncQueueItem
+import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
 
@@ -39,6 +41,7 @@ import com.jirani.app.ui.theme.JiraniTheme
 fun SyncScreen(
     modifier: Modifier = Modifier,
     viewModel: NetworkViewModel = viewModel(),
+    onQuickExit: () -> Unit = {},
 ) {
     val network by viewModel.network.collectAsStateWithLifecycle()
 
@@ -46,32 +49,36 @@ fun SyncScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        ScreenTitle(
-            title = "Network",
-            subtitle = "BLE/Wi-Fi Direct peer scan and delayed local sync queue.",
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            ScreenTitle(
+                title = "Sync",
+                subtitle = "Share with trusted nearby devices.",
+                modifier = Modifier.weight(1f),
+            )
+            QuickExitButton(onClick = onQuickExit)
+        }
         GhostSyncRadar(
             peerDetected = network.peerDetected,
             onScan = viewModel::togglePeerSimulation,
         )
         Text(
-            text = "${network.nearbyNeighbors} Neighbors Nearby",
+            text = "${network.nearbyNeighbors} nearby devices found",
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
-        NetworkStatCard("Items Waiting For Relay", network.queueSize.toString())
+        NetworkStatCard("Items waiting to share", network.queueSize.toString())
         SyncQueueList(network.queueItems)
         SyncStatusCard(
-            title = "Local-first queue",
-            body = "UI actions save locally first. Mesh or cloud sync happens later as a side effect.",
-        )
-        SyncStatusCard(
-            title = "Ghost-Sync transport",
-            body = "Transport adapters remain replaceable for BLE, Wi-Fi Direct, Nearby Connections, or Android sharing.",
+            title = "Nearby sharing",
+            body = "Saved items stay on this phone until a trusted sharing path is available.",
         )
     }
 }
@@ -97,7 +104,7 @@ private fun GhostSyncRadar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(28.dp),
+                .padding(18.dp),
             contentAlignment = Alignment.Center,
         ) {
             Surface(
@@ -109,14 +116,17 @@ private fun GhostSyncRadar(
                 shape = CircleShape,
             ) {}
             Surface(
-                modifier = Modifier.size(82.dp),
+                modifier = Modifier.heightIn(min = 60.dp),
                 onClick = onScan,
                 color = if (peerDetected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.surfaceVariant,
-                shape = CircleShape,
+                shape = MaterialTheme.shapes.medium,
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(
-                        text = if (peerDetected) "Mesh" else "Scan",
+                        text = if (peerDetected) "Sharing" else "Find nearby devices",
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -139,7 +149,7 @@ private fun NetworkStatCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -157,10 +167,10 @@ private fun SyncQueueList(items: List<SyncQueueItem>) {
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Sync Queue", fontWeight = FontWeight.SemiBold)
+            Text("Waiting to share safely", fontWeight = FontWeight.SemiBold)
             items.take(4).forEachIndexed { index, item ->
                 QueueRow(
                     index = index + 1,
@@ -213,8 +223,8 @@ private fun SyncStatusCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(body)

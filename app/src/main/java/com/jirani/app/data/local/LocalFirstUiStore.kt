@@ -68,8 +68,8 @@ object LocalFirstUiStore {
             nearbyNeighbors = 0,
             queueSize = 2,
             queueItems = listOf(
-                SyncQueueItem("water-access", "Water access draft", "Waiting for relay"),
-                SyncQueueItem("safety-check", "Safety alert summary", "Local only"),
+                SyncQueueItem("water-access", "Water access draft", "Waiting to share safely"),
+                SyncQueueItem("safety-check", "Safety alert summary", "Saved only on this phone"),
             ),
         ),
     )
@@ -98,7 +98,7 @@ object LocalFirstUiStore {
             val nextItem = SyncQueueItem(
                 id = "queue-${it.queueSize + 1}",
                 title = "New local record",
-                status = "Waiting for relay",
+                status = "Waiting to share safely",
             )
             it.copy(
                 queueSize = it.queueSize + 1,

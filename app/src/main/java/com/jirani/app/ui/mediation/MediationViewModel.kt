@@ -16,6 +16,9 @@ data class ChatMessage(
 
 data class MediationUiState(
     val input: String = "",
+    val conflictType: String = "",
+    val incidentType: String = "",
+    val helpNeed: String = "",
     val neutralizedText: String = "Safe version appears here as you prepare a message.",
     val showToneCheck: Boolean = false,
     val messages: List<ChatMessage> = listOf(
@@ -43,15 +46,28 @@ class MediationViewModel : ViewModel() {
         updateInput(text)
     }
 
+    fun selectConflictType(type: String) {
+        _uiState.update { it.copy(conflictType = type) }
+    }
+
+    fun selectIncidentType(type: String) {
+        _uiState.update { it.copy(incidentType = type) }
+    }
+
+    fun selectHelpNeed(need: String) {
+        _uiState.update { it.copy(helpNeed = need) }
+    }
+
     fun submit() {
         val state = _uiState.value
-        val guidance = mediationAgent.process(MediationRequest(state.input))
+        val description = buildGuidedDescription(state)
+        val guidance = mediationAgent.process(MediationRequest(description))
         _uiState.update {
             it.copy(
                 input = "",
                 guidance = guidance,
                 showToneCheck = false,
-                messages = it.messages + ChatMessage("You", state.input.ifBlank { "No details provided yet." }) +
+                messages = it.messages + ChatMessage("You", description.ifBlank { "No details provided yet." }) +
                     ChatMessage("Jirani", guidance.recommendations.joinToString("\n")),
             )
         }
@@ -84,4 +100,12 @@ class MediationViewModel : ViewModel() {
             lower.contains("attack") ||
             input.count { it == '!' } >= 2
     }
+
+    private fun buildGuidedDescription(state: MediationUiState): String =
+        listOf(
+            state.conflictType.takeIf { it.isNotBlank() }?.let { "Conflict type: $it" },
+            state.incidentType.takeIf { it.isNotBlank() }?.let { "What happened: $it" },
+            state.helpNeed.takeIf { it.isNotBlank() }?.let { "Help needed: $it" },
+            state.input.takeIf { it.isNotBlank() }?.let { "More detail: $it" },
+        ).filterNotNull().joinToString(". ")
 }
