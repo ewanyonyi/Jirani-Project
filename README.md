@@ -1,12 +1,13 @@
 # Jirani App
 
-A community dispute resolution platform for Android.
+An offline-first PeaceTech Android app for community mediation, anonymous reporting, agreement records, and resilient local coordination.
 
 ## Features
-- Dispute submission
-- Mediation scheduling
-- Agreement tracking
+- Mediation guidance through local agent logic
+- Anonymous safety reporting direction
+- Neutral agreement summary foundation
 - Offline-first design
+- Kotlin + Jetpack Compose Android UI
 
 ## Getting Started
 1. Clone the repository
@@ -14,4 +15,6 @@ A community dispute resolution platform for Android.
 3. Build and run
 
 ## Architecture
-Offline-first with local data storage and sync capabilities.
+Offline-first with local data storage, privacy-first records, and future peer-to-peer sync capabilities.
+
+See `AGENTS.md`, `PLAN.md`, `CAPSTONE_SPEC.md`, and `docs/` for the Codex-first development workflow.

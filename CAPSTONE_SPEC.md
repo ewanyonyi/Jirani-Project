@@ -213,6 +213,7 @@ Codex is integrated throughout the project lifecycle:
 | **AI Prompt Design** | Refining mediation, translation, and de-escalation prompts |
 | **Documentation** | Generating technical documentation and onboarding guides |
 | **Testing** | Assisting with scenario generation, edge-case simulation, and safety checks |
+| **Review** | Supporting code review criteria, privacy checks, and design alignment |
 
 ---
 

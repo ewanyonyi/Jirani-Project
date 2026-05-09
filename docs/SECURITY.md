@@ -1,15 +1,20 @@
 # Security Guidelines for Jirani App
 
 ## Data Protection
-- User data is stored locally and encrypted
-- No sensitive information transmitted without consent
-- Compliance with Android security best practices
+- Community records are stored locally first.
+- Sensitive local records should be encrypted before production use.
+- No sensitive information should be transmitted without explicit community/user consent.
+- Sync metadata should be minimal and separated from record content where possible.
+- Follow Android security best practices for storage, backup, and export controls.
 
 ## Authentication
-- Basic user authentication
-- Secure storage of credentials
+- The MVP should not require account registration, phone numbers, government IDs, or named profiles.
+- Anonymous participation is the default.
+- Recovery phrases may be explored later for local restoration without requiring centralized identity.
 
 ## Privacy
-- Minimal data collection
-- User consent for data usage
-- Offline-first to reduce data transmission
+- Avoid collecting PII in mediation, agreement, and reporting flows.
+- Use neutral labels such as Party A, Party B, Reporter, and Trusted Verifier.
+- Ask only for non-identifying incident details needed for safety: general location, time window, and observed risk.
+- Encourage trusted local verification before wider sharing of safety reports.
+- Offline-first behavior reduces unnecessary data transmission.

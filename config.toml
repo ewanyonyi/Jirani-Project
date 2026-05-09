@@ -1,0 +1,40 @@
+[project]
+name = "Jirani"
+description = "Offline-first PeaceTech Android app for community mediation, anonymous reporting, and resilient local sync."
+language = "Kotlin"
+platforms = ["Android"]
+uiFramework = "Jetpack Compose"
+repository = "https://github.com/your-org/jirani"
+author = "Emanuel Dickson Wanyonyi"
+license = "MIT"
+
+[build]
+gradleWrapper = "./gradlew"
+assembleDebug = "./gradlew assembleDebug"
+bundleRelease = "./gradlew bundleRelease"
+connectedAndroidTest = "./gradlew connectedAndroidTest"
+unitTest = "./gradlew testDebugUnitTest"
+
+[scripts]
+installDebug = "./scripts/install-debug.sh"
+buildReleaseAab = "./scripts/build-release-aab.sh"
+listDevices = "./scripts/list-devices.sh"
+monitorLogs = "./scripts/monitor-logs.sh"
+
+[tools]
+androidStudio = true
+vscode = true
+copilot = true
+androidSdk = true
+rustToolchain = true
+
+[testing]
+primary = "Android unit tests and instrumentation tests"
+secondary = "vitest for JavaScript/TypeScript demos or tooling"
+
+[backend]
+optionalRustServer = true
+separateRepository = true
+
+[notes]
+projectNotes = "This repo contains the Jirani Android app. The backend Rust server is planned as a separate repository. The app prioritizes offline-first resilience, anonymous reporting, and peer-to-peer sync concepts."
