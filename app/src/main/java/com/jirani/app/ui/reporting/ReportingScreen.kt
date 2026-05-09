@@ -2,12 +2,14 @@ package com.jirani.app.ui.reporting
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -44,9 +46,15 @@ fun ReportingScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         ScreenTitle(
-            title = "Anonymous Reporting",
-            subtitle = "Capture safety alerts without names, phone numbers, or personal identifiers.",
+            title = "Safety",
+            subtitle = "Anonymous alerts with fuzzy location and trusted verification.",
         )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(onClick = { report = "Armed men were seen near the market path this evening." }, label = { Text("Armed") })
+            AssistChip(onClick = { report = "Cattle rustlers were seen near the grazing route this morning." }, label = { Text("Rustling") })
+            AssistChip(onClick = { report = "Unverified rumor about unsafe border crossing." }, label = { Text("Rumor") })
+        }
+        FuzzyLocationCard()
         OutlinedTextField(
             value = report,
             onValueChange = { report = it },
@@ -64,6 +72,23 @@ fun ReportingScreen(
             Text("Prepare Verification Guidance")
         }
         guidance?.let { ReportingGuidancePanel(it) }
+    }
+}
+
+@Composable
+private fun FuzzyLocationCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text("Fuzzy Location Radius", fontWeight = FontWeight.SemiBold)
+            Text("Exact position hidden. Share only general area and time window.")
+        }
     }
 }
 
@@ -98,7 +123,7 @@ internal fun ScreenTitle(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
         )
         Text(

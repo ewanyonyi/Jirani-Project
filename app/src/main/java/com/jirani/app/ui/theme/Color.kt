@@ -2,10 +2,13 @@ package com.jirani.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Teal80 = Color(0xFF7DD3C7)
-val Olive80 = Color(0xFFA7C957)
-val Amber80 = Color(0xFFF2C14E)
+val ForestGreen80 = Color(0xFFA5D6A7)
+val TerraCotta80 = Color(0xFFD7CCC8)
+val BurntOrange80 = Color(0xFFFFAB91)
 
-val Teal40 = Color(0xFF0F766E)
-val Olive40 = Color(0xFF386641)
-val Amber40 = Color(0xFFB7791F)
+val ForestGreen40 = Color(0xFF2E7D32)
+val TerraCotta40 = Color(0xFF795548)
+val BurntOrange40 = Color(0xFFBF360C)
+val SoftSand = Color(0xFFF9FBE7)
+val CharcoalText = Color(0xFF1B1C17)
+val SandVariant = Color(0xFFECE8C8)

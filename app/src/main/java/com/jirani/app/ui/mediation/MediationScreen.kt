@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,15 +47,27 @@ fun MediationScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
-            text = "Mediation Assistant",
-            style = MaterialTheme.typography.headlineSmall,
+            text = "Mediation",
+            style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Generate calm, neutral guidance for a dispute without collecting personal identity.",
-            style = MaterialTheme.typography.bodyMedium,
+            text = "Neutralizer suggestions for conflict de-escalation.",
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        ToneCheckCard(description)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(
+                onClick = { description = "There is tension about shared water access." },
+                label = { Text("Water Rights") },
+            )
+            AssistChip(
+                onClick = { description = "Families disagree about grazing access near the boundary." },
+                label = { Text("Grazing Access") },
+            )
+        }
 
         OutlinedTextField(
             value = description,
@@ -87,10 +100,39 @@ fun MediationScreen(
 }
 
 @Composable
+private fun ToneCheckCard(description: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "Tone Check",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = if (description.isBlank()) {
+                    "Safe version appears here as you prepare a message."
+                } else {
+                    "Safe version: We need a calm discussion to clarify facts and agree on fair next steps."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
 private fun GuidancePanel(guidance: MediationGuidance) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(

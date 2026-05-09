@@ -2,12 +2,14 @@ package com.jirani.app.ui.agreement
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,9 +48,35 @@ fun AgreementScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         ScreenTitle(
-            title = "Agreement Records",
-            subtitle = "Draft neutral community records with anonymous labels and review guidance.",
+            title = "Vault",
+            subtitle = "Local library of draft, signed, and pending-sync records.",
         )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.primary,
+            shape = MaterialTheme.shapes.medium,
+        ) {
+            Text(
+                text = "Encrypted local vault: ready for Room/SQLite",
+                modifier = Modifier.padding(14.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("Local search") },
+            placeholder = { Text("Search saved agreements") },
+            enabled = false,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            AssistChip(onClick = {}, label = { Text("Signed") })
+            AssistChip(onClick = {}, label = { Text("Draft") })
+            AssistChip(onClick = {}, label = { Text("Synced") })
+        }
         OutlinedTextField(
             value = issue,
             onValueChange = { issue = it },
@@ -94,6 +122,7 @@ private fun AgreementSummaryPanel(summary: AgreementSummary) {
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Text("Pending Sync", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
             Text(summary.summary, fontWeight = FontWeight.SemiBold)
             summary.actions.forEach { Text("- $it") }
             Text(summary.followUp)

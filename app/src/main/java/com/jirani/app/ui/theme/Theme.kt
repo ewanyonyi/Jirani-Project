@@ -9,18 +9,28 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Teal80,
-    secondary = Olive80,
-    tertiary = Amber80
+    primary = ForestGreen80,
+    onPrimary = CharcoalText,
+    secondary = TerraCotta80,
+    tertiary = BurntOrange80,
+    error = BurntOrange80,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Teal40,
-    secondary = Olive40,
-    tertiary = Amber40
+    primary = ForestGreen40,
+    onPrimary = Color.White,
+    secondary = TerraCotta40,
+    surface = SoftSand,
+    background = SoftSand,
+    onSurface = CharcoalText,
+    onBackground = CharcoalText,
+    surfaceVariant = SandVariant,
+    error = BurntOrange40,
+    tertiary = BurntOrange40
 
     /* Other default colors to override
     background = Color(0xFFFFFBFE),
@@ -37,7 +47,7 @@ private val LightColorScheme = lightColorScheme(
 fun JiraniTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
