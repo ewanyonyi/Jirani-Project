@@ -159,15 +159,14 @@ object LocalFirstUiStore {
         details: String,
     ): ReportSubmissionReceipt {
         val envelope = saveSafetyReport(reportType, generalLocation, details)
-        val transfer = shareReportToNearbyDevices(envelope.envelopeId)
-        val message = if (transfer.deliveredCount > 0) {
-            transfer.message
+        val message = if (_network.value.trustedNearbyDevices.isNotEmpty()) {
+            "Report submitted. Nearby delivery is starting."
         } else {
             "Report submitted. No trusted nearby device available yet; scanning will keep it ready to send."
         }
         _network.update { it.copy(lastTransferMessage = message) }
         return ReportSubmissionReceipt(
-            envelope = _network.value.pendingEnvelopes.firstOrNull { it.envelopeId == envelope.envelopeId } ?: transfer.updatedEnvelope,
+            envelope = envelope,
             message = message,
         )
     }
@@ -247,11 +246,28 @@ object LocalFirstUiStore {
         val remainingSlots = envelope.maxUniqueDevices - envelope.deliveredDeviceAliases.size
         if (remainingSlots <= 0 || envelope.isStale()) return emptyList()
 
-        return current.trustedNearbyDevices
+        val packets = current.trustedNearbyDevices
             .filter { it.deviceAlias !in envelope.deliveredDeviceAliases }
+            .filter { it.deviceAlias !in envelope.sendingDeviceAliases }
             .take(remainingSlots)
             .map { target -> ReportingDeviceTransfer.createPacketForDevice(envelope, target) }
             .mapNotNull { it.packet }
+
+        if (packets.isNotEmpty()) {
+            val aliases = packets.map { it.targetAlias }
+            _network.update { state ->
+                state.copy(
+                    pendingEnvelopes = state.pendingEnvelopes.map { pending ->
+                        if (pending.envelopeId == envelope.envelopeId) {
+                            pending.copy(sendingDeviceAliases = (pending.sendingDeviceAliases + aliases).distinct())
+                        } else {
+                            pending
+                        }
+                    },
+                )
+            }
+        }
+        return packets
     }
 
     fun markNearbyReportPacketsSent(packets: List<WireReportPacket>) {
@@ -265,9 +281,16 @@ object LocalFirstUiStore {
                     ?.filterNot { alias -> alias in envelope.deliveredDeviceAliases }
                     ?: emptyList()
                 if (deliveredAliases.isEmpty()) {
-                    envelope
+                    envelope.copy(
+                        sendingDeviceAliases = envelope.sendingDeviceAliases.filterNot { alias ->
+                            alias in (packetsByEnvelope[envelope.envelopeId]?.map { packet -> packet.targetAlias } ?: emptyList())
+                        },
+                    )
                 } else {
-                    envelope.copy(deliveredDeviceAliases = envelope.deliveredDeviceAliases + deliveredAliases)
+                    envelope.copy(
+                        deliveredDeviceAliases = (envelope.deliveredDeviceAliases + deliveredAliases).distinct(),
+                        sendingDeviceAliases = envelope.sendingDeviceAliases.filterNot { alias -> alias in deliveredAliases },
+                    )
                 }
             }
             val remainingPending = updatedEnvelopes.filterNot { envelope ->
@@ -410,6 +433,7 @@ object LocalFirstUiStore {
                     reportType = "none",
                     generalArea = "none",
                     timeWindow = "none",
+                    submittedAtEpochSeconds = 0,
                     observedRisk = "none",
                     verificationStatus = VerificationStatus.LocalOnly,
                     sensitivity = ReportSensitivity.Community,

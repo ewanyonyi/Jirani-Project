@@ -1,8 +1,5 @@
 package com.jirani.app.ui.sync
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -22,27 +19,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jirani.app.data.local.ReceivedReportItem
 import com.jirani.app.data.local.SubmittedReportStatus
 import com.jirani.app.data.local.SyncTransport
-import com.jirani.app.sync.NearbyConnectionsScanner
+import com.jirani.app.sync.NearbySyncRuntime
 import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
-import kotlinx.coroutines.delay
 
 @Composable
 fun SyncScreen(
@@ -52,20 +45,12 @@ fun SyncScreen(
 ) {
     val context = LocalContext.current
     val network by viewModel.network.collectAsStateWithLifecycle()
-    val scanner = remember {
-        NearbyConnectionsScanner(
-            context = context,
-            onReportPacketReceived = viewModel::receiveNearbyReportPacket,
-            onReportPacketsSent = viewModel::markReportPacketsSent,
-            hasWaitingReports = viewModel::hasWaitingReports,
-        )
-    }
-    val scan by scanner.scan.collectAsStateWithLifecycle()
+    val scan by NearbySyncRuntime.scan.collectAsStateWithLifecycle()
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
         if (grants.values.all { it }) {
-            scanner.start()
+            NearbySyncRuntime.ensureAvailable()
         } else {
             viewModel.updateNearbyScan(
                 scan.copy(
@@ -81,48 +66,15 @@ fun SyncScreen(
         viewModel.updateNearbyScan(scan)
     }
 
-    LaunchedEffect(network.pendingEnvelopes.size, scan.connectedDevices.size, scan.scanning, scan.advertising) {
-        val missingPermissions = context.missingNearbyPermissions()
+    LaunchedEffect(network.pendingEnvelopes.size) {
+        val missingPermissions = NearbySyncRuntime.missingPermissions(context)
         if (missingPermissions.isNotEmpty()) {
             if (network.pendingEnvelopes.isNotEmpty()) {
                 permissionLauncher.launch(missingPermissions.toTypedArray())
             }
             return@LaunchedEffect
         }
-
-        if (!scan.advertising) {
-            scanner.makeAvailable()
-        }
-
-        when {
-            network.pendingEnvelopes.isEmpty() && scan.scanning -> scanner.pauseDiscovery()
-            network.pendingEnvelopes.isNotEmpty() && scan.connectedDevices.isEmpty() && !scan.scanning -> scanner.resumeDiscovery()
-        }
-    }
-
-    LaunchedEffect(network.pendingEnvelopes.size, scan.connectedDevices.size, scan.scanning) {
-        if (network.pendingEnvelopes.isNotEmpty() && scan.connectedDevices.isEmpty() && scan.scanning) {
-            delay(DiscoveryBurstMillis)
-            scanner.pauseDiscovery()
-        }
-    }
-
-    LaunchedEffect(network.pendingEnvelopes.size, scan.connectedDevices.size, scan.scanning, scan.advertising) {
-        if (network.pendingEnvelopes.isNotEmpty() && scan.connectedDevices.isEmpty() && !scan.scanning && scan.advertising) {
-            delay(DiscoveryRestMillis)
-            scanner.resumeDiscovery()
-        }
-    }
-
-    LaunchedEffect(scan.connectedDevices.size, network.pendingEnvelopes.size) {
-        if (scan.connectedDevices.isNotEmpty() && network.pendingEnvelopes.isNotEmpty()) {
-            viewModel.updateNearbyScan(scan)
-            scanner.sendReportPackets(viewModel.shareNextReportPackets())
-        }
-    }
-
-    DisposableEffect(scanner) {
-        onDispose { scanner.stop() }
+        NearbySyncRuntime.ensureAvailable()
     }
 
     Column(
@@ -216,31 +168,6 @@ private fun NearbySyncPanel(
     }
 }
 
-private fun android.content.Context.missingNearbyPermissions(): List<String> {
-    val required = when {
-        Build.VERSION.SDK_INT >= 32 -> listOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE,
-            Manifest.permission.NEARBY_WIFI_DEVICES,
-        )
-        Build.VERSION.SDK_INT == 31 -> listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.BLUETOOTH_ADVERTISE,
-        )
-        Build.VERSION.SDK_INT >= 29 -> listOf(Manifest.permission.ACCESS_FINE_LOCATION)
-        else -> listOf(Manifest.permission.ACCESS_COARSE_LOCATION)
-    }
-    return required.filter { permission ->
-        ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
-    }
-}
-
-private const val DiscoveryBurstMillis = 45_000L
-private const val DiscoveryRestMillis = 30_000L
-
 @Composable
 private fun SubmittedReportList(items: List<SubmittedReportStatus>) {
     Surface(
@@ -309,6 +236,11 @@ private fun ReceivedReportList(items: List<ReceivedReportItem>) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
+                        "Submitted ${item.submittedAtEpochSeconds.toReadableTime()}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
                         item.observedRisk,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -353,6 +285,13 @@ private fun SyncTransport.label(): String = when (this) {
     SyncTransport.AndroidShareSheet -> "Android Sharesheet"
     SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
 }
+
+private fun Long.toReadableTime(): String =
+    if (this <= 0L) {
+        "time unavailable"
+    } else {
+        java.time.Instant.ofEpochSecond(this).toString()
+    }
 
 @Preview(showBackground = true)
 @Composable

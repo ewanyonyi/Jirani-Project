@@ -43,6 +43,7 @@ class NearbyConnectionsScanner(
     private val discovered = linkedMapOf<String, NearbyJiraniDevice>()
     private val connected = linkedMapOf<String, NearbyJiraniDevice>()
     private val pendingConnections = mutableSetOf<String>()
+    private val inFlightPacketIds = mutableSetOf<String>()
     private val localAlias = "Jirani-${stableDeviceSuffix()}"
     private var advertisingStarted = false
     private var discoveryStarted = false
@@ -230,15 +231,21 @@ class NearbyConnectionsScanner(
         }
 
         packets.forEachIndexed { index, packet ->
+            if (!inFlightPacketIds.add(packet.packetId)) {
+                Log.d(Tag, "Skipping duplicate in-flight packet=${packet.packetId}")
+                return@forEachIndexed
+            }
             val endpointId = connected.keys.elementAt(index % connected.size)
             val bytes = NearbyReportPacketCodec.encode(packet)
             Log.d(Tag, "Sending payload to endpoint=$endpointId bytes=${bytes.size}")
             client.sendPayload(endpointId, Payload.fromBytes(bytes))
                 .addOnSuccessListener {
+                    inFlightPacketIds.remove(packet.packetId)
                     onReportPacketsSent(listOf(packet))
                     _scan.update { scan -> scan.copy(statusMessage = "Sent anonymized report packet to nearby device.") }
                 }
                 .addOnFailureListener { error ->
+                    inFlightPacketIds.remove(packet.packetId)
                     Log.w(Tag, "Payload send failed endpoint=$endpointId", error)
                     _scan.update { scan ->
                         scan.copy(statusMessage = error.localizedMessage ?: "Nearby payload send failed.")

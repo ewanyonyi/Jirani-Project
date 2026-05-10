@@ -34,6 +34,7 @@ class ReportingSyncPolicyTest {
         assertEquals(ReportSensitivity.Community, record.sensitivity)
         assertEquals(SyncAudienceTier.TrustedVerifier, envelope.audienceTier)
         assertEquals(SyncState.ReadyForNearbyShare, envelope.syncState)
+        assertEquals(record.createdAtEpochSeconds, envelope.payload.submittedAtEpochSeconds)
         assertTrue(envelope.allowedTransports.contains(SyncTransport.NearbyConnections))
     }
 
@@ -61,6 +62,7 @@ class ReportingSyncPolicyTest {
         assertFalse(received.observedRisk.contains("0712 333 444"))
         assertEquals(envelope.contentHash, result.packet?.contentHash)
         assertFalse(result.packet?.sealedPayload.orEmpty().contains("cattle"))
+        assertEquals(envelope.payload.submittedAtEpochSeconds, received.submittedAtEpochSeconds)
     }
 
     @Test

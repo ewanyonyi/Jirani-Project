@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.jirani.app.data.local.LocalFirstUiStore
 import com.jirani.app.domain.agent.ReportingAgent
 import com.jirani.app.domain.agent.SafetyReportRequest
+import com.jirani.app.sync.NearbySyncRuntime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -68,6 +69,7 @@ class ReportingViewModel(
             generalLocation = state.generalLocation,
             details = state.details,
         )
+        NearbySyncRuntime.ensureAvailable()
         _uiState.updateAndSave {
             it.copy(
                 step = ReportStep.Threat,
