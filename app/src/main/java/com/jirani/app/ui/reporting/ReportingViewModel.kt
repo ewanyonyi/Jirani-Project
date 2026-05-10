@@ -84,6 +84,27 @@ class ReportingViewModel(
         }
     }
 
+    fun submitEmergencySos() {
+        _uiState.updateAndSave { it.copy(submitting = true) }
+        val receipt = LocalFirstUiStore.submitSafetyReport(
+            reportType = "Emergency SOS",
+            generalLocation = _uiState.value.generalLocation,
+            details = "Emergency SOS requested. Reporter stayed anonymous. Follow up with nearby trusted safety contacts.",
+        )
+        if (LocalFirstUiStore.securitySettings.value.nearbySharingEnabled) {
+            NearbySyncRuntime.ensureAvailable()
+        }
+        _uiState.updateAndSave {
+            it.copy(
+                step = ReportStep.Threat,
+                threatType = "",
+                details = "",
+                submissionMessage = receipt.message,
+                submitting = false,
+            )
+        }
+    }
+
     private fun MutableStateFlow<ReportingUiState>.updateAndSave(
         transform: (ReportingUiState) -> ReportingUiState,
     ) {

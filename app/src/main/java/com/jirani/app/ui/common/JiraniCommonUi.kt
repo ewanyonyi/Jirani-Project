@@ -62,10 +62,15 @@ fun QuickExitButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = 40.dp),
         colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = MaterialTheme.colorScheme.tertiary,
+            contentColor = MaterialTheme.colorScheme.error,
         ),
     ) {
-        Text("Exit", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        Text(
+            "Exit",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.error,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 

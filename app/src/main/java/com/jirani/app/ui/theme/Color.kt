@@ -18,7 +18,7 @@ val JiraniSurfaceWarm = Color(0xFFF4EBDD)
 val JiraniSurfaceMuted = Color(0xFFEDE2D0)
 val JiraniOutline = Color(0xFFD3C7B6)
 val JiraniCharcoal = Color(0xFF151A17)
-val JiraniGray = Color(0xFF46504A)
+val JiraniGray = Color(0xFF2F3A34)
 
 val JiraniDarkBackground = Color(0xFF101512)
 val JiraniDarkSurface = Color(0xFF18201B)

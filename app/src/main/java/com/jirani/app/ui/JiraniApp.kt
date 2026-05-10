@@ -70,10 +70,10 @@ private enum class JiraniDestination(
     val navLabel: String,
     val iconRes: Int,
 ) {
-    Safety("safety", "Report", "Report", R.drawable.ic_nav_safety),
-    Mediation("mediation", "Mediation", "Mediate", R.drawable.ic_nav_mediation),
-    Vault("vault", "Agreements", "Agree", R.drawable.ic_nav_vault),
-    Network("network", "Sync", "Sync", R.drawable.ic_nav_network),
+    Safety("safety", "Report", "Community", R.drawable.ic_nav_safety),
+    Mediation("mediation", "Mediation", "Resolve", R.drawable.ic_nav_mediation),
+    Vault("vault", "Agreements", "Cases", R.drawable.ic_nav_vault),
+    Network("network", "Sync", "Verify", R.drawable.ic_nav_network),
 }
 
 private const val DecoyRoute = "decoy"

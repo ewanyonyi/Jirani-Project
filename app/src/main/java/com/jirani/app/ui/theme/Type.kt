@@ -3,22 +3,13 @@ package com.jirani.app.ui.theme
 import android.content.Context
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.jirani.app.R
-
-private val ManropeFamily = FontFamily(
-    Font(R.font.manrope_variable, FontWeight.Normal),
-    Font(R.font.manrope_variable, FontWeight.Medium),
-    Font(R.font.manrope_variable, FontWeight.SemiBold),
-    Font(R.font.manrope_variable, FontWeight.Bold),
-)
 
 fun provideAppTypography(context: Context): Typography {
-    val bodyFamily = ManropeFamily
-    val displayFamily = ManropeFamily
+    val bodyFamily = FontFamily.Default
+    val displayFamily = FontFamily.Default
     val baseline = Typography()
 
     return Typography(
