@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -32,7 +33,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jirani.app.data.local.ReceivedReportItem
+import com.jirani.app.data.local.SubmittedReportStatus
 import com.jirani.app.data.local.SyncQueueItem
+import com.jirani.app.data.local.SyncTransport
 import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
@@ -75,10 +79,25 @@ fun SyncScreen(
             fontWeight = FontWeight.Bold,
         )
         NetworkStatCard("Items waiting to share", network.queueSize.toString())
+        Button(
+            onClick = viewModel::shareNextReport,
+            enabled = network.peerDetected && network.pendingEnvelopes.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Send Next Anonymized Report")
+        }
+        network.lastTransferMessage?.let {
+            SyncStatusCard(
+                title = "Transfer status",
+                body = it,
+            )
+        }
         SyncQueueList(network.queueItems)
+        SubmittedReportList(network.submittedReports)
+        ReceivedReportList(network.receivedReports)
         SyncStatusCard(
             title = "Nearby sharing",
-            body = "Saved items stay on this phone until a trusted sharing path is available.",
+            body = "Reports move as sanitized envelopes. The receiving device gets report type, general area, time window, risk, and verification status, not names, phone numbers, exact homes, or reporter identity.",
         )
     }
 }
@@ -183,6 +202,86 @@ private fun SyncQueueList(items: List<SyncQueueItem>) {
 }
 
 @Composable
+private fun SubmittedReportList(items: List<SubmittedReportStatus>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Submitted reports", fontWeight = FontWeight.SemiBold)
+            if (items.isEmpty()) {
+                Text(
+                    text = "No report submitted from this phone yet.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                items.take(5).forEach { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(item.title, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Sent to ${item.deliveredCount}/${item.maxDevices} devices",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            if (item.stale) "Stale" else item.status,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceivedReportList(items: List<ReceivedReportItem>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Receiving device inbox", fontWeight = FontWeight.SemiBold)
+            if (items.isEmpty()) {
+                Text(
+                    text = "No anonymized report has reached the nearby Jirani device yet.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                items.take(3).forEach { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(item.reportType, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${item.generalArea} • ${item.timeWindow} • ${item.transport.label()}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            item.observedRisk,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun QueueRow(
     index: Int,
     item: SyncQueueItem,
@@ -231,6 +330,13 @@ private fun SyncStatusCard(
             Text(body)
         }
     }
+}
+
+private fun SyncTransport.label(): String = when (this) {
+    SyncTransport.NearbyConnections -> "Nearby Connections"
+    SyncTransport.WifiDirect -> "Wi-Fi Direct"
+    SyncTransport.AndroidShareSheet -> "Android Sharesheet"
+    SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
 }
 
 @Preview(showBackground = true)

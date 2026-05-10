@@ -37,6 +37,15 @@ SyncEnvelope
   - audienceTier
   - syncState
   - allowedTransports
+
+WireReportPacket
+  - random packetId
+  - sourceEnvelopeId
+  - targetAlias
+  - transport
+  - audienceTier
+  - contentHash
+  - sealedPayload
 ```
 
 ## Report Sensitivity Classes
@@ -53,6 +62,21 @@ SyncEnvelope
 - **Wi-Fi Direct:** used for larger local handoff where devices can connect directly without internet.
 - **Android Sharesheet:** used for explicit, user-driven sharing to a trusted app or contact.
 - **QR or encrypted file handoff:** used for the smallest and most sensitive payloads, especially survivor-centered reports.
+
+## Implemented MVP Transfer Model
+
+The current app demonstrates the device-to-device movement with an in-app trusted-device simulation:
+
+1. A submitted report becomes a `SafetyReportRecord`.
+2. The privacy filter creates a `SanitizedReportPayload`.
+3. The payload is wrapped in a `SyncEnvelope` with audience tier, allowed transports, and content hash.
+4. When a trusted nearby Jirani device is found, the app creates a `WireReportPacket`.
+5. The packet seals the sanitized payload before movement and carries a content hash for integrity checking.
+6. The receiving device opens the packet, verifies the hash, rejects tampered packets, and stores only the anonymized report fields.
+7. Eligible reports relay to a maximum of five unique trusted devices, then stop moving.
+8. Reports stop moving when their expiry window is reached, even if fewer than five devices received them.
+
+For the capstone demo, packet sealing uses a local AES-GCM demo key so the workflow can be tested without a production key exchange service. A production version should replace this with per-device key exchange through Nearby Connections, Wi-Fi Direct session keys, or another audited cryptographic handshake.
 
 ## Flow A: BLE, Nearby Share, or Wi-Fi Direct Enabled
 
@@ -71,7 +95,11 @@ Local sync queue
   v
 Sanitized sync payload
   |
-  | 4. Available transport selected by sensitivity
+  | 4. Payload sealed into WireReportPacket
+  v
+Sealed packet with content hash
+  |
+  | 5. Available transport selected by sensitivity
   |    - Nearby Connections for trusted verifier exchange
   |    - Wi-Fi Direct for local direct transfer
   |    - Android Sharesheet for explicit user handoff
@@ -79,23 +107,23 @@ Sanitized sync payload
   v
 Device B
   |
-  | 5. Device B verifies envelope hash and duplicate status
+  | 6. Device B opens packet and verifies content hash
   v
 Device B local storage
   |
-  | 6. Trusted verifier reviews report if needed
+  | 7. Trusted verifier reviews report if needed
   v
 Verified or rejected local status
   |
-  | 7. Device B relays only eligible envelopes onward
+  | 8. Device B relays only eligible envelopes onward
   v
 Other trusted devices / community gateway
   |
-  | 8. Gateway uploads opt-in minimized data when internet exists
+  | 9. Gateway uploads opt-in minimized data when internet exists
   v
 Optional OSF-hosted Rust server
   |
-  | 9. Server stores aggregates, trends, and non-PII analytics
+  | 10. Server stores aggregates, trends, and non-PII analytics
   v
 Community dashboards / anonymized insight exports
 ```
@@ -170,6 +198,16 @@ pending_verification
 ```
 
 Only `community_alert_ready` and `aggregated_upload_ready` records should be eligible for broad sharing or optional server analytics. Domestic violence and GBV records should not enter broad sharing; they remain survivor-support records unless a trained support process changes their status with explicit consent and legal/child-protection safeguards.
+
+## Relay Limits
+
+Each report envelope tracks the unique device aliases it has reached. The MVP limit is five unique devices per report. This prevents uncontrolled spread while still allowing urgent reports to move beyond the first phone when trusted nearby devices are available.
+
+Relay stops when:
+- five unique devices have received the report;
+- the report becomes stale based on its expiry window;
+- no trusted nearby device is available;
+- the sensitivity policy blocks the transport, such as GBV reports over nearby broadcast.
 
 ## Integrity Without Public Blockchain
 Jirani can use blockchain-inspired integrity without exposing sensitive reports on a public chain:

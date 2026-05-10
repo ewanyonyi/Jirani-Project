@@ -24,6 +24,8 @@ This project is designed for the Open Society Foundations PeaceTech challenge. I
 
 Using recent Kamba-Somali conflict patterns in Kenya as a guiding case study, Jirani addresses the gap between early warning and mediation. Reports about livestock movement, grazing pressure, water access, rumors, retaliation, road closures, domestic violence, GBV, or attacks are captured first. Mediation comes later, only when trusted local actors decide people can meet safely.
 
+This capstone stays aligned with the hackathon brief: it is an invention sprint, not a production launch. The demo should prove a working, realistic concept that is valuable enough to pursue, not claim to solve every conflict workflow end to end.
+
 The platform is designed for environments where:
 
 - internet access is unreliable;
@@ -36,6 +38,8 @@ The platform is designed for environments where:
 ---
 
 # 2. Core PeaceTech Objectives
+
+Jirani fits the **Peace & community** track from the capstone idea brief, with overlap into **Voice & accountability** because it helps people be heard safely without exposing identities.
 
 ## A. Safe Conflict Reporting
 
@@ -302,7 +306,30 @@ Out of scope for MVP:
 
 ---
 
-# 12. Trade-Offs
+# 12. Hackathon Requirements Alignment
+
+The hackathon asks each project to demonstrate four things:
+
+| Requirement | Jirani Response |
+|---|---|
+| **Depth of Codex integration** | Codex is visible across planning, implementation, tests, docs, review criteria, and prompt design. Repo artifacts include `AGENTS.md`, prompts, architecture docs, information flow docs, and tested Kotlin logic. |
+| **Real-world impact** | The product is grounded in concrete Kenyan conflict patterns: Kamba-Somali resource tension, cattle rustling risk, rumors, retaliation, displacement, domestic violence, and GBV reporting. |
+| **Reusability & adoption potential** | The app uses native Android, simple modular agents, offline-first records, and documented sync envelopes so another developer can extend the workflow without needing a central server first. |
+| **Demo & pitch quality** | The demo can show a 3-5 minute flow: submit a report, classify urgency, create a sanitized sync envelope, block unsafe mediation, and show survivor-support or protection next steps. |
+
+The capstone idea brief also defines operating constraints. Jirani addresses them as follows:
+
+| OSF Constraint | Demo Proof |
+|---|---|
+| **Displaced populations** | No account requirement; reports and agreements can be created on a shared or low-end Android device. |
+| **Low bandwidth** | Reports are useful locally before internet exists; sync envelope logic prepares nearby/offline movement. |
+| **Secure access / anonymity** | No names, phone numbers, exact GPS, or government IDs are required. |
+| **Multilingual communities** | English and Swahili are first-class MVP targets, with Somali and Kamba as priority expansion languages. |
+| **Adaptability** | Report categories, sensitivity rules, local actor labels, and mediation flows are modular. |
+
+---
+
+# 13. Trade-Offs
 
 | Trade-off | Decision |
 |---|---|
@@ -315,7 +342,7 @@ Out of scope for MVP:
 
 ---
 
-# 13. Long-Term Vision
+# 14. Long-Term Vision
 
 Jirani can evolve into a scalable PeaceTech platform adaptable across regions experiencing:
 
@@ -340,7 +367,7 @@ Future directions include:
 
 ---
 
-# 14. Closing Statement
+# 15. Closing Statement
 
 Jirani is designed around a simple belief:
 

@@ -255,19 +255,6 @@ private fun JiraniDrawer(
         ) {
             DrawerHeader()
             HorizontalDivider()
-            DrawerSection("Peace Tools")
-            DrawerItem(R.drawable.ic_nav_safety, "Report", "Start with a careful local report") {
-                onNavigate(JiraniDestination.Safety.route)
-            }
-            DrawerItem(R.drawable.ic_nav_mediation, "Mediation", "After elders or reviewers clear it") {
-                onNavigate(JiraniDestination.Mediation.route)
-            }
-            DrawerItem(R.drawable.ic_nav_vault, "Agreements", "Private local drafts") {
-                onNavigate(JiraniDestination.Vault.route)
-            }
-            DrawerItem(R.drawable.ic_nav_network, "Sync", "Nearby sharing status") {
-                onNavigate(JiraniDestination.Network.route)
-            }
             DrawerSection("Privacy")
             DrawerItem(R.drawable.ic_calculator, "Disguise Calculator", "Hide the screen quickly", onClick = onOpenDecoy)
             DrawerItem(R.drawable.ic_settings, "Settings", "Discreet code and preferences") {
@@ -280,10 +267,7 @@ private fun JiraniDrawer(
                 onClick = onToggleTheme,
             )
             DrawerSection("Saved Work")
-            DrawerItem(R.drawable.ic_incoming_data, "Saved Items", "Agreements on this phone") {
-                onNavigate(JiraniDestination.Vault.route)
-            }
-            DrawerItem(R.drawable.ic_share_data, "Share Status", "Items waiting to share") {
+            DrawerItem(R.drawable.ic_shield_report, "Saved Reports", "Delivery count by report") {
                 onNavigate(JiraniDestination.Network.route)
             }
         }

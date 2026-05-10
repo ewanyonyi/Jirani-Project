@@ -30,12 +30,30 @@ data class SyncQueueItem(
     val status: String,
 )
 
+data class SubmittedReportStatus(
+    val envelopeId: String,
+    val title: String,
+    val deliveredCount: Int,
+    val maxDevices: Int,
+    val stale: Boolean,
+    val status: String,
+)
+
 data class NetworkSnapshot(
     val peerDetected: Boolean = false,
     val nearbyNeighbors: Int = 0,
     val queueSize: Int = 0,
     val queueItems: List<SyncQueueItem> = emptyList(),
     val pendingEnvelopes: List<SyncEnvelope> = emptyList(),
+    val trustedNearbyDevices: List<NearbyJiraniDevice> = emptyList(),
+    val receivedReports: List<ReceivedReportItem> = emptyList(),
+    val submittedReports: List<SubmittedReportStatus> = emptyList(),
+    val lastTransferMessage: String? = null,
+)
+
+data class ReportSubmissionReceipt(
+    val envelope: SyncEnvelope,
+    val message: String,
 )
 
 data class SecuritySettings(
@@ -129,19 +147,108 @@ object LocalFirstUiStore {
                 queueSize = it.queueSize + 1,
                 queueItems = listOf(nextItem) + it.queueItems,
                 pendingEnvelopes = listOf(envelope) + it.pendingEnvelopes,
+                submittedReports = listOf(envelope.toSubmittedStatus(nextItem.status)) + it.submittedReports,
             )
         }
         return envelope
     }
 
+    fun submitSafetyReport(
+        reportType: String,
+        generalLocation: String,
+        details: String,
+    ): ReportSubmissionReceipt {
+        val envelope = saveSafetyReport(reportType, generalLocation, details)
+        val transfer = shareReportToNearbyDevices(envelope.envelopeId)
+        val message = if (transfer.deliveredCount > 0) {
+            transfer.message
+        } else {
+            "Report submitted. No trusted nearby device available yet; scanning will keep it ready to send."
+        }
+        _network.update { it.copy(lastTransferMessage = message) }
+        return ReportSubmissionReceipt(
+            envelope = _network.value.pendingEnvelopes.firstOrNull { it.envelopeId == envelope.envelopeId } ?: transfer.updatedEnvelope,
+            message = message,
+        )
+    }
+
     fun togglePeerSimulation() {
+        val nextDetected = !_network.value.peerDetected
         _network.update {
-            val nextDetected = !it.peerDetected
             it.copy(
                 peerDetected = nextDetected,
                 nearbyNeighbors = if (nextDetected) 5 else 0,
+                trustedNearbyDevices = if (nextDetected) {
+                    trustedDemoDevices()
+                } else {
+                    emptyList()
+                },
+                lastTransferMessage = if (nextDetected) {
+                    "Trusted Jirani devices found. Waiting reports can be sent anonymously."
+                } else {
+                    "Nearby device discovery stopped."
+                },
             )
         }
+        if (nextDetected) {
+            shareNextReportToNearbyDevices()
+        }
+    }
+
+    fun shareNextReportToNearbyDevice(): TransferResult {
+        val batch = shareNextReportToNearbyDevices()
+        return batch.results.firstOrNull()
+            ?: TransferResult(batch.deliveredCount > 0, batch.message)
+    }
+
+    fun shareNextReportToNearbyDevices(): TransferBatchResult {
+        val current = _network.value
+        val envelope = current.pendingEnvelopes.firstOrNull()
+            ?: return emptyTransfer("No report envelope is waiting to share.")
+        return shareReportToNearbyDevices(envelope.envelopeId)
+    }
+
+    private fun shareReportToNearbyDevices(envelopeId: String): TransferBatchResult {
+        val current = _network.value
+        val envelope = current.pendingEnvelopes.firstOrNull { it.envelopeId == envelopeId }
+            ?: return emptyTransfer("No report envelope is waiting to share.")
+        val result = ReportingDeviceTransfer.sendToDevices(envelope, current.trustedNearbyDevices)
+        _network.update {
+            if (result.deliveredCount == 0) {
+                it.copy(lastTransferMessage = result.message)
+            } else {
+                val completed = result.updatedEnvelope.deliveredDeviceAliases.size >= result.updatedEnvelope.maxUniqueDevices ||
+                    result.updatedEnvelope.isStale()
+                val updatedPending = if (completed) {
+                    it.pendingEnvelopes.filterNot { pending -> pending.envelopeId == envelope.envelopeId }
+                } else {
+                    it.pendingEnvelopes.map { pending ->
+                        if (pending.envelopeId == envelope.envelopeId) result.updatedEnvelope else pending
+                    }
+                }
+                it.copy(
+                    pendingEnvelopes = updatedPending,
+                    queueSize = updatedPending.size,
+                    queueItems = it.queueItems.map { item ->
+                        if (item.id == envelope.envelopeId) {
+                            item.copy(status = result.message)
+                        } else {
+                            item
+                        }
+                    },
+                    submittedReports = it.submittedReports.map { report ->
+                        if (report.envelopeId == envelope.envelopeId) {
+                            result.updatedEnvelope.toSubmittedStatus(result.message)
+                        } else {
+                            report
+                        }
+                    },
+                    receivedReports = result.results.mapNotNull { transfer -> transfer.receivedItem } + it.receivedReports,
+                    lastTransferMessage = result.message,
+                )
+            }
+        }
+        return result
     }
 
     fun updateDiscreetCode(code: String) {
@@ -154,4 +261,61 @@ object LocalFirstUiStore {
         SyncAudienceTier.TrustedVerifier -> "Ready for nearby trusted verifier"
         SyncAudienceTier.CommunityAlert -> "Ready for community alert sharing"
     }
+
+    private fun SyncEnvelope.toSubmittedStatus(status: String): SubmittedReportStatus =
+        SubmittedReportStatus(
+            envelopeId = envelopeId,
+            title = "${payload.reportType} report",
+            deliveredCount = deliveredDeviceAliases.size,
+            maxDevices = maxUniqueDevices,
+            stale = isStale(),
+            status = status,
+        )
+
+    private fun trustedDemoDevices(): List<NearbyJiraniDevice> =
+        listOf(
+            "Elder verifier phone",
+            "Peace committee phone",
+            "Chief desk phone",
+            "OSF partner phone",
+            "Clinic support phone",
+        ).map { alias ->
+            NearbyJiraniDevice(
+                deviceAlias = alias,
+                trusted = true,
+                supportedTransports = listOf(
+                    SyncTransport.NearbyConnections,
+                    SyncTransport.WifiDirect,
+                    SyncTransport.AndroidShareSheet,
+                ),
+            )
+        }
+
+    private fun emptyTransfer(message: String): TransferBatchResult =
+        TransferBatchResult(
+            deliveredCount = 0,
+            attemptedCount = 0,
+            updatedEnvelope = SyncEnvelope(
+                envelopeId = "none",
+                recordType = "none",
+                recordId = "none",
+                contentHash = "none",
+                version = 0,
+                lastModifiedBucket = "none",
+                audienceTier = SyncAudienceTier.TrustedVerifier,
+                syncState = SyncState.LocalHold,
+                allowedTransports = emptyList(),
+                payload = SanitizedReportPayload(
+                    reportType = "none",
+                    generalArea = "none",
+                    timeWindow = "none",
+                    observedRisk = "none",
+                    verificationStatus = VerificationStatus.LocalOnly,
+                    sensitivity = ReportSensitivity.Community,
+                ),
+                expiresAtEpochSeconds = 0,
+            ),
+            results = emptyList(),
+            message = message,
+        )
 }

@@ -9,4 +9,8 @@ class NetworkViewModel : ViewModel() {
     fun togglePeerSimulation() {
         LocalFirstUiStore.togglePeerSimulation()
     }
+
+    fun shareNextReport() {
+        LocalFirstUiStore.shareNextReportToNearbyDevices()
+    }
 }
