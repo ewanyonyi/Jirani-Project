@@ -195,6 +195,23 @@ object LocalFirstUiStore {
         }
     }
 
+    fun updateNearbyDevices(
+        devices: List<NearbyJiraniDevice>,
+        scanning: Boolean,
+    ) {
+        val uniqueDevices = devices.distinctBy { it.deviceAlias }
+        _network.update {
+            it.copy(
+                peerDetected = scanning && uniqueDevices.isNotEmpty(),
+                nearbyNeighbors = uniqueDevices.size,
+                trustedNearbyDevices = uniqueDevices,
+            )
+        }
+        if (uniqueDevices.isNotEmpty()) {
+            shareNextReportToNearbyDevices()
+        }
+    }
+
     fun shareNextReportToNearbyDevice(): TransferResult {
         val batch = shareNextReportToNearbyDevices()
         return batch.results.firstOrNull()

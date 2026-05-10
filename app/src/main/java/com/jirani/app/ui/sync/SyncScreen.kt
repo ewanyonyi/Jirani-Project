@@ -1,13 +1,12 @@
 package com.jirani.app.ui.sync
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,24 +18,29 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jirani.app.data.local.ReceivedReportItem
 import com.jirani.app.data.local.SubmittedReportStatus
-import com.jirani.app.data.local.SyncQueueItem
 import com.jirani.app.data.local.SyncTransport
+import com.jirani.app.sync.NearbyConnectionsScanner
 import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
@@ -47,7 +51,33 @@ fun SyncScreen(
     viewModel: NetworkViewModel = viewModel(),
     onQuickExit: () -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val scanner = remember { NearbyConnectionsScanner(context) }
     val network by viewModel.network.collectAsStateWithLifecycle()
+    val scan by scanner.scan.collectAsStateWithLifecycle()
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants.values.all { it }) {
+            scanner.start()
+        } else {
+            viewModel.updateNearbyScan(
+                scan.copy(
+                    scanning = false,
+                    advertising = false,
+                    statusMessage = "Nearby permissions are needed to find Jirani devices.",
+                ),
+            )
+        }
+    }
+
+    LaunchedEffect(scan) {
+        viewModel.updateNearbyScan(scan)
+    }
+
+    DisposableEffect(scanner) {
+        onDispose { scanner.stop() }
+    }
 
     Column(
         modifier = modifier
@@ -63,123 +93,54 @@ fun SyncScreen(
         ) {
             ScreenTitle(
                 title = "Sync",
-                subtitle = "Share with trusted nearby devices.",
+                subtitle = "Saved reports and nearby delivery.",
                 modifier = Modifier.weight(1f),
             )
             QuickExitButton(onClick = onQuickExit)
         }
-        NearbyShareStatus(
+        NearbySyncPanel(
             peerDetected = network.peerDetected,
-            onScan = viewModel::togglePeerSimulation,
+            nearbyDevices = network.nearbyNeighbors,
+            waitingCount = network.pendingEnvelopes.size,
+            scanning = scan.scanning,
+            statusMessage = scan.statusMessage,
+            onScan = {
+                if (scan.scanning || scan.advertising) {
+                    scanner.stop()
+                    return@NearbySyncPanel
+                }
+
+                val missingPermissions = context.missingNearbyPermissions()
+                if (missingPermissions.isEmpty()) {
+                    scanner.start()
+                } else {
+                    permissionLauncher.launch(missingPermissions.toTypedArray())
+                }
+            },
+            onSendNext = viewModel::shareNextReport,
         )
-        Text(
-            text = "${network.nearbyNeighbors} nearby devices found",
-            modifier = Modifier.fillMaxWidth(),
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        NetworkStatCard("Items waiting to share", network.queueSize.toString())
-        Button(
-            onClick = viewModel::shareNextReport,
-            enabled = network.peerDetected && network.pendingEnvelopes.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Send Next Anonymized Report")
-        }
         network.lastTransferMessage?.let {
             SyncStatusCard(
-                title = "Transfer status",
                 body = it,
             )
         }
-        SyncQueueList(network.queueItems)
         SubmittedReportList(network.submittedReports)
-        ReceivedReportList(network.receivedReports)
-        SyncStatusCard(
-            title = "Nearby sharing",
-            body = "Reports move as sanitized envelopes. The receiving device gets report type, general area, time window, risk, and verification status, not names, phone numbers, exact homes, or reporter identity.",
-        )
+        if (network.receivedReports.isNotEmpty()) {
+            ReceivedReportList(network.receivedReports)
+        }
     }
 }
 
 @Composable
-private fun NearbyShareStatus(
+private fun NearbySyncPanel(
     peerDetected: Boolean,
+    nearbyDevices: Int,
+    waitingCount: Int,
+    scanning: Boolean,
+    statusMessage: String,
     onScan: () -> Unit,
+    onSendNext: () -> Unit,
 ) {
-    val transition = rememberInfiniteTransition(label = "radar")
-    val scale by transition.animateFloat(
-        initialValue = 0.72f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
-        label = "radar-scale",
-    )
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Surface(
-                modifier = Modifier
-                    .size(150.dp)
-                    .graphicsLayer(scaleX = scale, scaleY = scale)
-                    .alpha(0.22f),
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape,
-            ) {}
-            Surface(
-                modifier = Modifier.heightIn(min = 60.dp),
-                onClick = onScan,
-                color = if (peerDetected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = if (peerDetected) "Sharing" else "Find nearby devices",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NetworkStatCard(
-    title: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            Text(title, style = MaterialTheme.typography.labelMedium)
-        }
-    }
-}
-
-@Composable
-private fun SyncQueueList(items: List<SyncQueueItem>) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -188,16 +149,82 @@ private fun SyncQueueList(items: List<SyncQueueItem>) {
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Waiting to share safely", fontWeight = FontWeight.SemiBold)
-            items.take(4).forEachIndexed { index, item ->
-                QueueRow(
-                    index = index + 1,
-                    item = item,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                StatusDot(active = peerDetected)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (peerDetected) {
+                            "Nearby devices available"
+                        } else if (scanning) {
+                            "Scanning for devices"
+                        } else {
+                            "Scanning paused"
+                        },
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Text(
+                        text = "$nearbyDevices found - $waitingCount waiting",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = statusMessage,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onScan,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(if (scanning) "Pause scan" else "Find devices")
+                }
+                Button(
+                    onClick = onSendNext,
+                    enabled = peerDetected && waitingCount > 0,
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text("Send next")
+                }
             }
         }
+    }
+}
+
+private fun android.content.Context.missingNearbyPermissions(): List<String> {
+    val required = when {
+        Build.VERSION.SDK_INT >= 32 -> listOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+            Manifest.permission.NEARBY_WIFI_DEVICES,
+        )
+        Build.VERSION.SDK_INT == 31 -> listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+        )
+        Build.VERSION.SDK_INT >= 29 -> listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        else -> listOf(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+    return required.filter { permission ->
+        ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
     }
 }
 
@@ -216,12 +243,15 @@ private fun SubmittedReportList(items: List<SubmittedReportStatus>) {
             Text("Submitted reports", fontWeight = FontWeight.SemiBold)
             if (items.isEmpty()) {
                 Text(
-                    text = "No report submitted from this phone yet.",
+                    text = "No saved reports yet.",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                items.take(5).forEach { item ->
+                items.take(6).forEachIndexed { index, item ->
+                    if (index > 0) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(item.title, fontWeight = FontWeight.SemiBold)
                         Text(
@@ -254,27 +284,22 @@ private fun ReceivedReportList(items: List<ReceivedReportItem>) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Receiving device inbox", fontWeight = FontWeight.SemiBold)
-            if (items.isEmpty()) {
-                Text(
-                    text = "No anonymized report has reached the nearby Jirani device yet.",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                items.take(3).forEach { item ->
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(item.reportType, fontWeight = FontWeight.SemiBold)
-                        Text(
-                            "${item.generalArea} • ${item.timeWindow} • ${item.transport.label()}",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            item.observedRisk,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            items.take(3).forEachIndexed { index, item ->
+                if (index > 0) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(item.reportType, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "${item.generalArea} - ${item.timeWindow} - ${item.transport.label()}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        item.observedRisk,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -282,38 +307,16 @@ private fun ReceivedReportList(items: List<ReceivedReportItem>) {
 }
 
 @Composable
-private fun QueueRow(
-    index: Int,
-    item: SyncQueueItem,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Surface(
-            modifier = Modifier.size(28.dp),
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-            shape = CircleShape,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(index.toString(), style = MaterialTheme.typography.labelMedium)
-            }
-        }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(item.title, fontWeight = FontWeight.SemiBold)
-            Text(
-                item.status,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+private fun StatusDot(active: Boolean) {
+    Surface(
+        modifier = Modifier.size(14.dp),
+        color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+        shape = CircleShape,
+    ) {}
 }
 
 @Composable
 private fun SyncStatusCard(
-    title: String,
     body: String,
 ) {
     Surface(
@@ -326,7 +329,6 @@ private fun SyncStatusCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(title, fontWeight = FontWeight.SemiBold)
             Text(body)
         }
     }
