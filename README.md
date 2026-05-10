@@ -28,13 +28,19 @@ Current implementation:
 - `app/src/main/java/com/jirani/app/sync/NearbyConnectionsScanner.kt`
   - starts Nearby advertising so this phone can be found by another Jirani phone;
   - starts Nearby discovery so this phone can find nearby Jirani phones;
+  - requests a Nearby connection when another Jirani phone is found;
+  - accepts incoming Jirani connection requests;
+  - sends and receives anonymized report packets as Nearby byte payloads;
   - uses the service ID `com.jirani.app.nearby`;
   - uses `Strategy.P2P_CLUSTER` so multiple nearby trusted phones can participate;
   - publishes discovered phones as `NearbyJiraniDevice` records using `SyncTransport.NearbyConnections`.
 - `app/src/main/java/com/jirani/app/ui/sync/SyncScreen.kt`
   - requests runtime Nearby permissions;
-  - starts or stops scanning from the `Find devices` / `Pause scan` button;
+  - starts nearby availability automatically when permissions are already granted;
+  - uses `Find devices` / `Pause scan` as manual controls;
+  - keeps existing Nearby connections alive when discovery is paused;
   - shows how many nearby Jirani devices were found;
+  - automatically sends waiting eligible reports after a nearby device is connected;
   - keeps submitted report delivery counts visible.
 - `app/src/main/java/com/jirani/app/data/local/LocalFirstUiStore.kt`
   - receives discovered devices;
@@ -70,11 +76,13 @@ Use two Android phones for the real test. Emulators are not reliable for Nearby 
 1. Build and install the app on both phones.
 2. Open Jirani on both phones.
 3. Go to `Sync`.
-4. Tap `Find devices` on both phones.
-5. Grant the requested Bluetooth, nearby device, Wi-Fi, or location permissions.
-6. Keep both phones close together.
-7. The Sync screen should show the number of nearby Jirani devices found.
-8. Submit a non-GBV/non-domestic report on one phone, then return to Sync to see queued delivery status.
+4. Grant the requested Bluetooth, nearby device, Wi-Fi, or location permissions if prompted.
+5. Keep both phones close together.
+6. The Sync screen should become available automatically. `Find devices` is only needed if discovery was paused or permissions were granted after the screen opened.
+7. The Sync screen should show found devices first, then connected devices after the Nearby handshake completes.
+8. Submit a non-GBV/non-domestic report on one phone.
+9. Return to Sync. If a connected device is available, Jirani should send the waiting eligible report automatically.
+10. The sending phone should update `Sent to X/5 devices`; the receiving phone should show the anonymized report in the receiving-device inbox.
 
 If you see a Nearby error such as `8032: MISSING_PERMISSION_ACCESS_WIFI_STATE` or `8033: MISSING_PERMISSION_CHANGE_WIFI_STATE`, reinstall the app after pulling the latest manifest changes. Android must receive the updated permission declarations from a fresh install or upgrade.
 

@@ -207,9 +207,24 @@ object LocalFirstUiStore {
                 trustedNearbyDevices = uniqueDevices,
             )
         }
-        if (uniqueDevices.isNotEmpty()) {
-            shareNextReportToNearbyDevices()
+    }
+
+    fun receiveNearbyReportPacket(
+        packet: WireReportPacket,
+        fromAlias: String,
+    ): TransferResult {
+        val result = ReportingDeviceTransfer.receivePacket(packet, fromAlias)
+        _network.update {
+            if (result.delivered && result.receivedItem != null) {
+                it.copy(
+                    receivedReports = listOf(result.receivedItem) + it.receivedReports,
+                    lastTransferMessage = "An anonymized report was received from $fromAlias.",
+                )
+            } else {
+                it.copy(lastTransferMessage = result.message)
+            }
         }
+        return result
     }
 
     fun shareNextReportToNearbyDevice(): TransferResult {
@@ -225,7 +240,20 @@ object LocalFirstUiStore {
         return shareReportToNearbyDevices(envelope.envelopeId)
     }
 
-    private fun shareReportToNearbyDevices(envelopeId: String): TransferBatchResult {
+    fun createNearbyReportPacketsForNextReport(): List<WireReportPacket> {
+        val current = _network.value
+        val envelope = current.pendingEnvelopes.firstOrNull()
+            ?: return emptyList()
+        return shareReportToNearbyDevices(
+            envelopeId = envelope.envelopeId,
+            recordReceivedReports = false,
+        ).results.mapNotNull { it.packet }
+    }
+
+    private fun shareReportToNearbyDevices(
+        envelopeId: String,
+        recordReceivedReports: Boolean = true,
+    ): TransferBatchResult {
         val current = _network.value
         val envelope = current.pendingEnvelopes.firstOrNull { it.envelopeId == envelopeId }
             ?: return emptyTransfer("No report envelope is waiting to share.")
@@ -260,7 +288,11 @@ object LocalFirstUiStore {
                             report
                         }
                     },
-                    receivedReports = result.results.mapNotNull { transfer -> transfer.receivedItem } + it.receivedReports,
+                    receivedReports = if (recordReceivedReports) {
+                        result.results.mapNotNull { transfer -> transfer.receivedItem } + it.receivedReports
+                    } else {
+                        it.receivedReports
+                    },
                     lastTransferMessage = result.message,
                 )
             }

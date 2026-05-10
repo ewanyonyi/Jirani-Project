@@ -2,6 +2,7 @@ package com.jirani.app.ui.sync
 
 import androidx.lifecycle.ViewModel
 import com.jirani.app.data.local.LocalFirstUiStore
+import com.jirani.app.data.local.WireReportPacket
 import com.jirani.app.sync.NearbyScanSnapshot
 
 class NetworkViewModel : ViewModel() {
@@ -9,12 +10,22 @@ class NetworkViewModel : ViewModel() {
 
     fun updateNearbyScan(scan: NearbyScanSnapshot) {
         LocalFirstUiStore.updateNearbyDevices(
-            devices = scan.devices,
+            devices = scan.connectedDevices,
             scanning = scan.scanning,
         )
     }
 
     fun shareNextReport() {
         LocalFirstUiStore.shareNextReportToNearbyDevices()
+    }
+
+    fun shareNextReportPackets(): List<WireReportPacket> =
+        LocalFirstUiStore.createNearbyReportPacketsForNextReport()
+
+    fun receiveNearbyReportPacket(
+        packet: WireReportPacket,
+        fromAlias: String,
+    ) {
+        LocalFirstUiStore.receiveNearbyReportPacket(packet, fromAlias)
     }
 }

@@ -52,8 +52,13 @@ fun SyncScreen(
     onQuickExit: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val scanner = remember { NearbyConnectionsScanner(context) }
     val network by viewModel.network.collectAsStateWithLifecycle()
+    val scanner = remember {
+        NearbyConnectionsScanner(
+            context = context,
+            onReportPacketReceived = viewModel::receiveNearbyReportPacket,
+        )
+    }
     val scan by scanner.scan.collectAsStateWithLifecycle()
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -73,6 +78,24 @@ fun SyncScreen(
 
     LaunchedEffect(scan) {
         viewModel.updateNearbyScan(scan)
+    }
+
+    LaunchedEffect(network.pendingEnvelopes.size, scan.scanning, scan.advertising) {
+        if (scan.scanning || scan.advertising) return@LaunchedEffect
+
+        val missingPermissions = context.missingNearbyPermissions()
+        if (missingPermissions.isEmpty()) {
+            scanner.start()
+        } else if (network.pendingEnvelopes.isNotEmpty()) {
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+        }
+    }
+
+    LaunchedEffect(scan.connectedDevices.size, network.pendingEnvelopes.size) {
+        if (scan.connectedDevices.isNotEmpty() && network.pendingEnvelopes.isNotEmpty()) {
+            viewModel.updateNearbyScan(scan)
+            scanner.sendReportPackets(viewModel.shareNextReportPackets())
+        }
     }
 
     DisposableEffect(scanner) {
@@ -100,13 +123,14 @@ fun SyncScreen(
         }
         NearbySyncPanel(
             peerDetected = network.peerDetected,
-            nearbyDevices = network.nearbyNeighbors,
+            nearbyDevices = scan.devices.size,
+            connectedDevices = scan.connectedDevices.size,
             waitingCount = network.pendingEnvelopes.size,
             scanning = scan.scanning,
             statusMessage = scan.statusMessage,
             onScan = {
-                if (scan.scanning || scan.advertising) {
-                    scanner.stop()
+                if (scan.scanning) {
+                    scanner.pauseDiscovery()
                     return@NearbySyncPanel
                 }
 
@@ -117,7 +141,9 @@ fun SyncScreen(
                     permissionLauncher.launch(missingPermissions.toTypedArray())
                 }
             },
-            onSendNext = viewModel::shareNextReport,
+            onSendNext = {
+                scanner.sendReportPackets(viewModel.shareNextReportPackets())
+            },
         )
         network.lastTransferMessage?.let {
             SyncStatusCard(
@@ -135,6 +161,7 @@ fun SyncScreen(
 private fun NearbySyncPanel(
     peerDetected: Boolean,
     nearbyDevices: Int,
+    connectedDevices: Int,
     waitingCount: Int,
     scanning: Boolean,
     statusMessage: String,
@@ -169,7 +196,7 @@ private fun NearbySyncPanel(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "$nearbyDevices found - $waitingCount waiting",
+                        text = "$nearbyDevices found - $connectedDevices connected - $waitingCount waiting",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -194,7 +221,7 @@ private fun NearbySyncPanel(
                 }
                 Button(
                     onClick = onSendNext,
-                    enabled = peerDetected && waitingCount > 0,
+                    enabled = connectedDevices > 0 && waitingCount > 0,
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp),
