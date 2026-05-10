@@ -69,7 +69,9 @@ class ReportingViewModel(
             generalLocation = state.generalLocation,
             details = state.details,
         )
-        NearbySyncRuntime.ensureAvailable()
+        if (LocalFirstUiStore.securitySettings.value.nearbySharingEnabled) {
+            NearbySyncRuntime.ensureAvailable()
+        }
         _uiState.updateAndSave {
             it.copy(
                 step = ReportStep.Threat,

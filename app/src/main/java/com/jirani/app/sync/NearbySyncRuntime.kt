@@ -22,6 +22,7 @@ object NearbySyncRuntime {
     private var scanner: NearbyConnectionsScanner? = null
     private var appContext: Context? = null
     private var started = false
+    private var disabledForSettings = false
 
     val scan: StateFlow<NearbyScanSnapshot>
         get() = scanner?.scan ?: emptyScan
@@ -38,11 +39,19 @@ object NearbySyncRuntime {
         )
         started = true
         bindRuntime()
-        ensureAvailable()
+        if (LocalFirstUiStore.securitySettings.value.nearbySharingEnabled) {
+            ensureAvailable()
+        }
     }
 
     fun ensureAvailable() {
         val context = appContext ?: return
+        if (!LocalFirstUiStore.securitySettings.value.nearbySharingEnabled) {
+            disabledForSettings = true
+            scanner?.stop()
+            return
+        }
+        disabledForSettings = false
         if (context.missingNearbyPermissions().isNotEmpty()) return
 
         val currentScanner = requireScanner()
@@ -61,6 +70,17 @@ object NearbySyncRuntime {
 
     private fun bindRuntime() {
         val currentScanner = requireScanner()
+
+        scope.launch {
+            LocalFirstUiStore.securitySettings.collect { settings ->
+                if (settings.nearbySharingEnabled) {
+                    ensureAvailable()
+                } else {
+                    disabledForSettings = true
+                    currentScanner.stop()
+                }
+            }
+        }
 
         scope.launch {
             currentScanner.scan.collect { scan ->
@@ -91,6 +111,12 @@ object NearbySyncRuntime {
                 )
             }.collectLatest { state ->
                 val context = appContext ?: return@collectLatest
+                if (disabledForSettings) return@collectLatest
+                if (!LocalFirstUiStore.securitySettings.value.nearbySharingEnabled) {
+                    disabledForSettings = true
+                    currentScanner.stop()
+                    return@collectLatest
+                }
                 if (context.missingNearbyPermissions().isNotEmpty()) return@collectLatest
 
                 if (!state.advertising) {

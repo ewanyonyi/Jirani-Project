@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,10 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -54,11 +52,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jirani.app.R
+import com.jirani.app.data.local.AppThemeMode
 import com.jirani.app.data.local.LocalFirstUiStore
 import com.jirani.app.ui.agreement.AgreementScreen
 import com.jirani.app.ui.decoy.DecoyScreen
 import com.jirani.app.ui.mediation.MediationScreen
 import com.jirani.app.ui.reporting.ReportingScreen
+import com.jirani.app.ui.settings.DecoyPasscodeScreen
 import com.jirani.app.ui.settings.SettingsScreen
 import com.jirani.app.ui.sync.SyncScreen
 import com.jirani.app.ui.theme.JiraniTheme
@@ -78,11 +78,18 @@ private enum class JiraniDestination(
 
 private const val DecoyRoute = "decoy"
 private const val SettingsRoute = "settings"
+private const val DecoyPasscodeRoute = "settings/decoy-passcode"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JiraniApp() {
-    var darkTheme by rememberSaveable { mutableStateOf(false) }
+    val securitySettings by LocalFirstUiStore.securitySettings.collectAsStateWithLifecycle()
+    val systemDarkTheme = isSystemInDarkTheme()
+    val darkTheme = when (securitySettings.themeMode) {
+        AppThemeMode.System -> systemDarkTheme
+        AppThemeMode.Light -> false
+        AppThemeMode.Dark -> true
+    }
 
     JiraniTheme(darkTheme = darkTheme) {
         val navController = rememberNavController()
@@ -92,7 +99,6 @@ fun JiraniApp() {
         val backStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = backStackEntry?.destination?.route ?: JiraniDestination.Safety.route
         val network by LocalFirstUiStore.network.collectAsStateWithLifecycle()
-        val securitySettings by LocalFirstUiStore.securitySettings.collectAsStateWithLifecycle()
         val showChrome = currentRoute != DecoyRoute
         val closeApp = {
             activity?.finishAndRemoveTask()
@@ -105,23 +111,13 @@ fun JiraniApp() {
             drawerContent = {
                 if (showChrome) {
                     JiraniDrawer(
-                        darkTheme = darkTheme,
                         onNavigate = { route ->
                             scope.launch { drawerState.close() }
                             navigateSingleTop(navController, route)
                         },
-                        onOpenDecoy = {
+                        onOpenDecoyPasscode = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(DecoyRoute) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    inclusive = true
-                                }
-                                launchSingleTop = true
-                            }
-                        },
-                        onToggleTheme = {
-                            scope.launch { drawerState.close() }
-                            darkTheme = !darkTheme
+                            navController.navigate(DecoyPasscodeRoute)
                         },
                     )
                 }
@@ -221,7 +217,12 @@ fun JiraniApp() {
                     composable(JiraniDestination.Vault.route) { AgreementScreen(onQuickExit = closeApp) }
                     composable(JiraniDestination.Safety.route) { ReportingScreen(onQuickExit = closeApp) }
                     composable(JiraniDestination.Network.route) { SyncScreen(onQuickExit = closeApp) }
-                    composable(SettingsRoute) { SettingsScreen() }
+                    composable(SettingsRoute) {
+                        SettingsScreen()
+                    }
+                    composable(DecoyPasscodeRoute) {
+                        DecoyPasscodeScreen()
+                    }
                     composable(DecoyRoute) {
                         DecoyScreen(
                             unlockCode = securitySettings.discreetCode,
@@ -243,10 +244,8 @@ fun JiraniApp() {
 
 @Composable
 private fun JiraniDrawer(
-    darkTheme: Boolean,
     onNavigate: (String) -> Unit,
-    onOpenDecoy: () -> Unit,
-    onToggleTheme: () -> Unit,
+    onOpenDecoyPasscode: () -> Unit,
 ) {
     ModalDrawerSheet(
         modifier = Modifier.width(328.dp),
@@ -260,17 +259,11 @@ private fun JiraniDrawer(
         ) {
             DrawerHeader()
             HorizontalDivider()
-            DrawerSection("Privacy")
-            DrawerItem(R.drawable.ic_calculator, "Disguise Calculator", "Hide the screen quickly", onClick = onOpenDecoy)
-            DrawerItem(R.drawable.ic_settings, "Settings", "Discreet code and preferences") {
+            DrawerSection("Settings")
+            DrawerItem(R.drawable.ic_settings, "App Settings", "Theme, language, and sharing") {
                 onNavigate(SettingsRoute)
             }
-            DrawerItem(
-                iconRes = if (darkTheme) R.drawable.ic_light_mode else R.drawable.ic_dark_mode,
-                title = if (darkTheme) "Light Mode" else "Dark Mode",
-                subtitle = "Change display style",
-                onClick = onToggleTheme,
-            )
+            DrawerItem(R.drawable.ic_calculator, "Set Decoy", "Calculator unlock passcode", onClick = onOpenDecoyPasscode)
             DrawerSection("Saved Work")
             DrawerItem(R.drawable.ic_shield_report, "Saved Reports", "Delivery count by report") {
                 onNavigate(JiraniDestination.Network.route)

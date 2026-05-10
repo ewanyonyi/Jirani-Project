@@ -67,7 +67,23 @@ data class ReportSubmissionReceipt(
 
 data class SecuritySettings(
     val discreetCode: String = "2468=",
+    val nearbySharingEnabled: Boolean = true,
+    val language: AppLanguage = AppLanguage.English,
+    val themeMode: AppThemeMode = AppThemeMode.Light,
 )
+
+enum class AppLanguage {
+    English,
+    Swahili,
+    Somali,
+    Kamba,
+}
+
+enum class AppThemeMode {
+    System,
+    Light,
+    Dark,
+}
 
 object LocalFirstUiStore {
     private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -115,11 +131,23 @@ object LocalFirstUiStore {
                 _network.value = restored
             }
         }
+        preferences?.getString(SecuritySettingsKey, null)?.let { encoded ->
+            runCatching { decodeSecuritySettings(encoded) }.getOrNull()?.let { restored ->
+                _securitySettings.value = restored
+            }
+        }
         persistenceStarted = true
         persistenceScope.launch {
             _network.drop(1).collect { snapshot ->
                 preferences?.edit()
                     ?.putString(NetworkSnapshotKey, encodeNetworkSnapshot(snapshot))
+                    ?.apply()
+            }
+        }
+        persistenceScope.launch {
+            _securitySettings.drop(1).collect { settings ->
+                preferences?.edit()
+                    ?.putString(SecuritySettingsKey, encodeSecuritySettings(settings))
                     ?.apply()
             }
         }
@@ -433,6 +461,18 @@ object LocalFirstUiStore {
         _securitySettings.update { it.copy(discreetCode = code) }
     }
 
+    fun updateNearbySharingEnabled(enabled: Boolean) {
+        _securitySettings.update { it.copy(nearbySharingEnabled = enabled) }
+    }
+
+    fun updateLanguage(language: AppLanguage) {
+        _securitySettings.update { it.copy(language = language) }
+    }
+
+    fun updateThemeMode(themeMode: AppThemeMode) {
+        _securitySettings.update { it.copy(themeMode = themeMode) }
+    }
+
     private fun SyncEnvelope.queueStatusLabel(): String = when (audienceTier) {
         SyncAudienceTier.SurvivorSupportOnly -> "Held locally; survivor-support sharing only"
         SyncAudienceTier.ProtectionActors -> "Waiting for trusted protection contact"
@@ -506,6 +546,24 @@ object LocalFirstUiStore {
             .put("submittedReports", JSONArray(snapshot.submittedReports.map { it.toJson() }))
             .put("lastTransferMessage", snapshot.lastTransferMessage)
             .toString()
+
+    private fun encodeSecuritySettings(settings: SecuritySettings): String =
+        JSONObject()
+            .put("discreetCode", settings.discreetCode)
+            .put("nearbySharingEnabled", settings.nearbySharingEnabled)
+            .put("language", settings.language.name)
+            .put("themeMode", settings.themeMode.name)
+            .toString()
+
+    private fun decodeSecuritySettings(encoded: String): SecuritySettings {
+        val json = JSONObject(encoded)
+        return SecuritySettings(
+            discreetCode = json.optString("discreetCode", "2468="),
+            nearbySharingEnabled = json.optBoolean("nearbySharingEnabled", true),
+            language = json.optEnum("language", AppLanguage.English),
+            themeMode = json.optEnum("themeMode", AppThemeMode.Light),
+        )
+    }
 
     private fun decodeNetworkSnapshot(encoded: String): NetworkSnapshot {
         val json = JSONObject(encoded)
@@ -670,4 +728,5 @@ object LocalFirstUiStore {
 
     private const val StoreName = "jirani_local_first_store"
     private const val NetworkSnapshotKey = "network_snapshot_v1"
+    private const val SecuritySettingsKey = "security_settings_v1"
 }

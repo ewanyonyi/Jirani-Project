@@ -75,6 +75,15 @@ Nearby Connections uses Bluetooth, Wi-Fi, and nearby-device radios under the hoo
 
 Runtime permission handling is in `SyncScreen.kt`. If the user denies the required permissions, Nearby scanning will not start.
 
+### App Settings
+
+The Settings screen includes:
+
+- **Nearby sharing:** app-level toggle for Nearby discovery, advertising, and report sending. Turning it off keeps reports queued locally. Android OS permissions are still managed by Android system settings.
+- **Language:** current app preference for English, Swahili, Somali, or Kamba. The wider translation work is still a future phase.
+- **Theme:** Light or Dark display mode.
+- **Calculator decoy code:** local code used to return from the decoy screen.
+
 ### Battery Behavior
 
 Jirani separates **availability** from **active discovery**:
