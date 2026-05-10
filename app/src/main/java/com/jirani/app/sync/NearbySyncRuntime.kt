@@ -33,6 +33,7 @@ object NearbySyncRuntime {
             context = context.applicationContext,
             onReportPacketReceived = LocalFirstUiStore::receiveNearbyReportPacket,
             onReportPacketsSent = LocalFirstUiStore::markNearbyReportPacketsSent,
+            onReportPacketsFailed = LocalFirstUiStore::markNearbyReportPacketsFailed,
             hasWaitingReports = { LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() },
         )
         started = true

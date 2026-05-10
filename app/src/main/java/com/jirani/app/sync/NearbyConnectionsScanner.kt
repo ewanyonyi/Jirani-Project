@@ -36,6 +36,7 @@ class NearbyConnectionsScanner(
     context: Context,
     private val onReportPacketReceived: (WireReportPacket, String) -> Unit = { _, _ -> },
     private val onReportPacketsSent: (List<WireReportPacket>) -> Unit = {},
+    private val onReportPacketsFailed: (List<WireReportPacket>) -> Unit = {},
     private val hasWaitingReports: () -> Boolean = { false },
 ) {
     private val appContext = context.applicationContext
@@ -246,6 +247,7 @@ class NearbyConnectionsScanner(
                 }
                 .addOnFailureListener { error ->
                     inFlightPacketIds.remove(packet.packetId)
+                    onReportPacketsFailed(listOf(packet))
                     Log.w(Tag, "Payload send failed endpoint=$endpointId", error)
                     _scan.update { scan ->
                         scan.copy(statusMessage = error.localizedMessage ?: "Nearby payload send failed.")

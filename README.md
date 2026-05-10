@@ -51,6 +51,7 @@ Current implementation:
   - receives discovered devices;
   - updates the sync state;
   - attempts queued report sharing when eligible devices are found.
+  - persists pending, submitted, and received reports in app-private storage so they survive app and phone restart.
 
 Important privacy rule: Nearby scanning only finds other Jirani devices. Report content still goes through the existing sanitized sync-envelope policy. Domestic violence and GBV reports remain local by default and are not broadcast through nearby community sharing.
 

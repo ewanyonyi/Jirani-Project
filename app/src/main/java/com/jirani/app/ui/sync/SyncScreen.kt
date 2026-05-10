@@ -66,15 +66,19 @@ fun SyncScreen(
         viewModel.updateNearbyScan(scan)
     }
 
-    LaunchedEffect(network.pendingEnvelopes.size) {
+    LaunchedEffect(Unit) {
         val missingPermissions = NearbySyncRuntime.missingPermissions(context)
         if (missingPermissions.isNotEmpty()) {
-            if (network.pendingEnvelopes.isNotEmpty()) {
-                permissionLauncher.launch(missingPermissions.toTypedArray())
-            }
+            permissionLauncher.launch(missingPermissions.toTypedArray())
             return@LaunchedEffect
         }
         NearbySyncRuntime.ensureAvailable()
+    }
+
+    LaunchedEffect(network.pendingEnvelopes.size) {
+        if (NearbySyncRuntime.missingPermissions(context).isEmpty()) {
+            NearbySyncRuntime.ensureAvailable()
+        }
     }
 
     Column(

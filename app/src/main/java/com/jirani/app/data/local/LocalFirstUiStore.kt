@@ -1,8 +1,17 @@
 package com.jirani.app.data.local
 
+import android.content.Context
+import android.content.SharedPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
+import org.json.JSONArray
+import org.json.JSONObject
 
 enum class SyncStatus {
     Local,
@@ -61,6 +70,10 @@ data class SecuritySettings(
 )
 
 object LocalFirstUiStore {
+    private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var preferences: SharedPreferences? = null
+    private var persistenceStarted = false
+
     private val _agreements = MutableStateFlow(
         listOf(
             AgreementItem(
@@ -85,17 +98,32 @@ object LocalFirstUiStore {
         NetworkSnapshot(
             peerDetected = false,
             nearbyNeighbors = 0,
-            queueSize = 2,
-            queueItems = listOf(
-                SyncQueueItem("water-access", "Water access draft", "Waiting to share safely"),
-                SyncQueueItem("safety-check", "Safety alert summary", "Saved only on this phone"),
-            ),
+            queueSize = 0,
+            queueItems = emptyList(),
         ),
     )
     val network: StateFlow<NetworkSnapshot> = _network
 
     private val _securitySettings = MutableStateFlow(SecuritySettings())
     val securitySettings: StateFlow<SecuritySettings> = _securitySettings
+
+    fun initializePersistence(context: Context) {
+        if (persistenceStarted) return
+        preferences = context.applicationContext.getSharedPreferences(StoreName, Context.MODE_PRIVATE)
+        preferences?.getString(NetworkSnapshotKey, null)?.let { encoded ->
+            runCatching { decodeNetworkSnapshot(encoded) }.getOrNull()?.let { restored ->
+                _network.value = restored
+            }
+        }
+        persistenceStarted = true
+        persistenceScope.launch {
+            _network.drop(1).collect { snapshot ->
+                preferences?.edit()
+                    ?.putString(NetworkSnapshotKey, encodeNetworkSnapshot(snapshot))
+                    ?.apply()
+            }
+        }
+    }
 
     fun saveAgreementDraft(title: String, summary: String) {
         _agreements.update { current ->
@@ -239,6 +267,7 @@ object LocalFirstUiStore {
         return shareReportToNearbyDevices(envelope.envelopeId)
     }
 
+    @Synchronized
     fun createNearbyReportPacketsForNextReport(): List<WireReportPacket> {
         val current = _network.value
         val envelope = current.pendingEnvelopes.firstOrNull()
@@ -270,6 +299,7 @@ object LocalFirstUiStore {
         return packets
     }
 
+    @Synchronized
     fun markNearbyReportPacketsSent(packets: List<WireReportPacket>) {
         if (packets.isEmpty()) return
 
@@ -321,6 +351,30 @@ object LocalFirstUiStore {
                 },
                 submittedReports = updatedSubmittedReports,
                 lastTransferMessage = "Report sent anonymously to ${packets.size} nearby device(s).",
+            )
+        }
+    }
+
+    @Synchronized
+    fun markNearbyReportPacketsFailed(packets: List<WireReportPacket>) {
+        if (packets.isEmpty()) return
+        _network.update { current ->
+            val aliasesByEnvelope = packets.groupBy { it.sourceEnvelopeId }
+                .mapValues { entry -> entry.value.map { packet -> packet.targetAlias } }
+            current.copy(
+                pendingEnvelopes = current.pendingEnvelopes.map { envelope ->
+                    val failedAliases = aliasesByEnvelope[envelope.envelopeId].orEmpty()
+                    if (failedAliases.isEmpty()) {
+                        envelope
+                    } else {
+                        envelope.copy(
+                            sendingDeviceAliases = envelope.sendingDeviceAliases.filterNot { alias ->
+                                alias in failedAliases
+                            },
+                        )
+                    }
+                },
+                lastTransferMessage = "Nearby delivery did not complete. Jirani will retry when the device is available.",
             )
         }
     }
@@ -443,4 +497,177 @@ object LocalFirstUiStore {
             results = emptyList(),
             message = message,
         )
+
+    private fun encodeNetworkSnapshot(snapshot: NetworkSnapshot): String =
+        JSONObject()
+            .put("queueItems", JSONArray(snapshot.queueItems.map { it.toJson() }))
+            .put("pendingEnvelopes", JSONArray(snapshot.pendingEnvelopes.map { it.copy(sendingDeviceAliases = emptyList()).toJson() }))
+            .put("receivedReports", JSONArray(snapshot.receivedReports.map { it.toJson() }))
+            .put("submittedReports", JSONArray(snapshot.submittedReports.map { it.toJson() }))
+            .put("lastTransferMessage", snapshot.lastTransferMessage)
+            .toString()
+
+    private fun decodeNetworkSnapshot(encoded: String): NetworkSnapshot {
+        val json = JSONObject(encoded)
+        val pendingEnvelopes = json.optJSONArray("pendingEnvelopes").toList { it.toSyncEnvelope() }
+        val queueItems = json.optJSONArray("queueItems").toList { it.toSyncQueueItem() }
+        return NetworkSnapshot(
+            queueSize = pendingEnvelopes.size,
+            queueItems = queueItems,
+            pendingEnvelopes = pendingEnvelopes,
+            receivedReports = json.optJSONArray("receivedReports").toList { it.toReceivedReportItem() },
+            submittedReports = json.optJSONArray("submittedReports").toList { it.toSubmittedReportStatus() },
+            lastTransferMessage = json.optString("lastTransferMessage").ifBlank { null },
+        )
+    }
+
+    private fun SyncQueueItem.toJson(): JSONObject =
+        JSONObject()
+            .put("id", id)
+            .put("title", title)
+            .put("status", status)
+
+    private fun JSONObject.toSyncQueueItem(): SyncQueueItem =
+        SyncQueueItem(
+            id = optString("id"),
+            title = optString("title"),
+            status = optString("status"),
+        )
+
+    private fun SubmittedReportStatus.toJson(): JSONObject =
+        JSONObject()
+            .put("envelopeId", envelopeId)
+            .put("title", title)
+            .put("deliveredCount", deliveredCount)
+            .put("maxDevices", maxDevices)
+            .put("stale", stale)
+            .put("status", status)
+
+    private fun JSONObject.toSubmittedReportStatus(): SubmittedReportStatus =
+        SubmittedReportStatus(
+            envelopeId = optString("envelopeId"),
+            title = optString("title"),
+            deliveredCount = optInt("deliveredCount"),
+            maxDevices = optInt("maxDevices", 5),
+            stale = optBoolean("stale"),
+            status = optString("status"),
+        )
+
+    private fun ReceivedReportItem.toJson(): JSONObject =
+        JSONObject()
+            .put("packetId", packetId)
+            .put("fromAlias", fromAlias)
+            .put("transport", transport.name)
+            .put("reportType", reportType)
+            .put("generalArea", generalArea)
+            .put("timeWindow", timeWindow)
+            .put("submittedAtEpochSeconds", submittedAtEpochSeconds)
+            .put("observedRisk", observedRisk)
+            .put("verificationStatus", verificationStatus.name)
+            .put("sensitivity", sensitivity.name)
+
+    private fun JSONObject.toReceivedReportItem(): ReceivedReportItem =
+        ReceivedReportItem(
+            packetId = optString("packetId"),
+            fromAlias = optString("fromAlias"),
+            transport = optEnum("transport", SyncTransport.NearbyConnections),
+            reportType = optString("reportType"),
+            generalArea = optString("generalArea"),
+            timeWindow = optString("timeWindow"),
+            submittedAtEpochSeconds = optLong("submittedAtEpochSeconds"),
+            observedRisk = optString("observedRisk"),
+            verificationStatus = optEnum("verificationStatus", VerificationStatus.PendingVerification),
+            sensitivity = optEnum("sensitivity", ReportSensitivity.Community),
+        )
+
+    private fun SyncEnvelope.toJson(): JSONObject =
+        JSONObject()
+            .put("envelopeId", envelopeId)
+            .put("recordType", recordType)
+            .put("recordId", recordId)
+            .put("contentHash", contentHash)
+            .put("version", version)
+            .put("lastModifiedBucket", lastModifiedBucket)
+            .put("audienceTier", audienceTier.name)
+            .put("syncState", syncState.name)
+            .put("allowedTransports", JSONArray(allowedTransports.map { it.name }))
+            .put("payload", payload.toJson())
+            .put("expiresAtEpochSeconds", expiresAtEpochSeconds)
+            .put("deliveredDeviceAliases", JSONArray(deliveredDeviceAliases))
+            .put("maxUniqueDevices", maxUniqueDevices)
+
+    private fun JSONObject.toSyncEnvelope(): SyncEnvelope =
+        SyncEnvelope(
+            envelopeId = optString("envelopeId"),
+            recordType = optString("recordType"),
+            recordId = optString("recordId"),
+            contentHash = optString("contentHash"),
+            version = optInt("version", 1),
+            lastModifiedBucket = optString("lastModifiedBucket"),
+            audienceTier = optEnum("audienceTier", SyncAudienceTier.TrustedVerifier),
+            syncState = optEnum("syncState", SyncState.LocalHold),
+            allowedTransports = optJSONArray("allowedTransports").toEnumList<SyncTransport>(),
+            payload = optJSONObject("payload")?.toSanitizedReportPayload() ?: SanitizedReportPayload(
+                reportType = "unknown",
+                generalArea = "general area withheld",
+                timeWindow = "time window not specified",
+                submittedAtEpochSeconds = 0,
+                observedRisk = "details withheld",
+                verificationStatus = VerificationStatus.PendingVerification,
+                sensitivity = ReportSensitivity.Community,
+            ),
+            expiresAtEpochSeconds = optLong("expiresAtEpochSeconds"),
+            deliveredDeviceAliases = optJSONArray("deliveredDeviceAliases").toStringList(),
+            maxUniqueDevices = optInt("maxUniqueDevices", 5),
+        )
+
+    private fun SanitizedReportPayload.toJson(): JSONObject =
+        JSONObject()
+            .put("reportType", reportType)
+            .put("generalArea", generalArea)
+            .put("timeWindow", timeWindow)
+            .put("submittedAtEpochSeconds", submittedAtEpochSeconds)
+            .put("observedRisk", observedRisk)
+            .put("verificationStatus", verificationStatus.name)
+            .put("sensitivity", sensitivity.name)
+
+    private fun JSONObject.toSanitizedReportPayload(): SanitizedReportPayload =
+        SanitizedReportPayload(
+            reportType = optString("reportType"),
+            generalArea = optString("generalArea"),
+            timeWindow = optString("timeWindow"),
+            submittedAtEpochSeconds = optLong("submittedAtEpochSeconds"),
+            observedRisk = optString("observedRisk"),
+            verificationStatus = optEnum("verificationStatus", VerificationStatus.PendingVerification),
+            sensitivity = optEnum("sensitivity", ReportSensitivity.Community),
+        )
+
+    private fun JSONArray?.toStringList(): List<String> =
+        if (this == null) {
+            emptyList()
+        } else {
+            (0 until length()).mapNotNull { index -> optString(index).takeIf { it.isNotBlank() } }
+        }
+
+    private inline fun <reified T : Enum<T>> JSONArray?.toEnumList(): List<T> =
+        if (this == null) {
+            emptyList()
+        } else {
+            (0 until length()).mapNotNull { index ->
+                runCatching { enumValueOf<T>(optString(index)) }.getOrNull()
+            }
+        }
+
+    private fun <T> JSONArray?.toList(transform: (JSONObject) -> T): List<T> =
+        if (this == null) {
+            emptyList()
+        } else {
+            (0 until length()).mapNotNull { index -> optJSONObject(index)?.let(transform) }
+        }
+
+    private inline fun <reified T : Enum<T>> JSONObject.optEnum(key: String, fallback: T): T =
+        runCatching { enumValueOf<T>(optString(key)) }.getOrDefault(fallback)
+
+    private const val StoreName = "jirani_local_first_store"
+    private const val NetworkSnapshotKey = "network_snapshot_v1"
 }
