@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -153,6 +154,10 @@ fun JiraniApp() {
                             }
                         },
                             actions = {
+                                ReceivedReportNotificationIcon(
+                                    count = network.receivedReports.size,
+                                    onClick = { navigateSingleTop(navController, JiraniDestination.Network.route) },
+                                )
                                 MeshStatusIcon(
                                     peerDetected = network.peerDetected,
                                     onClick = { navigateSingleTop(navController, JiraniDestination.Network.route) },
@@ -351,6 +356,42 @@ private fun DrawerItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceivedReportNotificationIcon(
+    count: Int,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick) {
+        Box {
+            Icon(
+                painter = painterResource(R.drawable.ic_notifications),
+                contentDescription = if (count > 0) {
+                    "$count received reports"
+                } else {
+                    "No received reports"
+                },
+                tint = if (count > 0) MaterialTheme.colorScheme.primary else Color.LightGray,
+            )
+            if (count > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(androidx.compose.ui.Alignment.TopEnd)
+                        .size(18.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ) {
+                    Text(
+                        text = if (count > 9) "9+" else count.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
