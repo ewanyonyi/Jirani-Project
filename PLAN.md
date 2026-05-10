@@ -1,141 +1,199 @@
 # Development Plan for Jirani App
 
-This plan follows the Codex-style development workflow for the Jirani PeaceTech app: plan → build → test → review. It aligns with the current `CAPSTONE_SPEC.md` and `AGENTS.md` by centering on offline-first mediation, anonymous reporting, and native Kotlin/Jetpack Compose development.
+This plan follows the actual build order for the Jirani PeaceTech capstone. We started with the app UI screens, moved into reporting, are now focusing on sync/report movement, and will leave mediation/resolution for the final feature phase.
 
-## Phase 1: Planning & Setup
-- Review the capstone vision, constraints, and MVP scope from `CAPSTONE_SPEC.md`.
-- Confirm agent responsibilities from `AGENTS.md`:
-  - Mediation Agent
-  - Translation Agent
-  - Summary Agent
-  - Reporting Agent
-- Set up Android Studio / IntelliJ and VS Code with Codex/Copilot.
-- Verify Gradle wrapper, Kotlin toolchain, and local Android SDK.
-- Create or update project config files including `config.toml` and `scripts/README.md`.
+The workflow remains: write → test → review → document.
 
-**Prompt Reference**: Use `prompts/initial_prompt.md` for overall Codex guidance and project setup.
+---
 
-## Phase 2: Core Architecture
-- Define local storage models using Room/SQLite and encrypted storage patterns.
-- Design Jetpack Compose screens for:
-  - dispute description and mediation assistance,
-  - agreement record creation,
-  - anonymous incident reporting,
-  - local sync status and history.
-- Implement the offline-first sync design:
-  - local peer-to-peer data flow concepts,
-  - delayed synchronization and data gossiping,
-  - placeholder support for BLE/Wi-Fi Direct / Ghost-Sync.
-- Build the AI mediation layer with hybrid support:
-  - on-device guidance and prompt-driven logic,
-  - optional cloud-assisted prompt orchestration for prototypes.
+## Phase 1: App UI Screens
 
-**Prompt Reference**: Use `prompts/initial_prompt.md` for architecture design and MVVM setup.
+Goal: Build a usable native Android shell that can support the capstone demo.
 
-## Phase 3: Feature Development
-- Mediation Assistant: accept conflict descriptions and generate calm, neutral responses.
-- Community Agreement Records: save peace agreements, schedules, and coordination notes locally.
-- Anonymous Reporting: support threat reports for goons, rustlers, terrorism, and local security alerts.
-- Translation & Accessibility: integrate English and Swahili support with future extensibility.
-- Reporting Workflows: include trusted verification guidance for anonymous safety alerts.
+- Define the main Jetpack Compose navigation structure.
+- Build core screens:
+  - Report
+  - Agreements
+  - Sync
+  - Mediation
+  - Settings
+  - Decoy/quick-exit screen
+- Create bottom navigation for primary app sections.
+- Keep side drawer for secondary utilities only, avoiding duplicate bottom-nav links.
+- Lock the app to portrait for stable demo and field use.
+- Apply the Jirani visual direction: paper-like background, dark green brand color, clear touch targets, readable typography.
 
-**Prompt Reference**: Use `prompts/mediation_prompt.md` for mediation features, `prompts/translation_prompt.md` for translation, `prompts/agreement_summary_prompt.md` for summaries, and `prompts/reporting_prompt.md` for reporting.
+Status:
+- [x] Main navigation shell
+- [x] Bottom navigation
+- [x] Side drawer cleanup
+- [x] Portrait lock
+- [x] Initial Compose screens
 
-## Phase 4: Testing & Validation
-- Implement Android unit tests for business logic and data models.
-- Implement instrumentation/UI tests for Compose screens and user flows.
-- Run commands from `AGENTS.md`:
-  - `./scripts/install-debug.sh`
-  - `./scripts/list-devices.sh`
+---
+
+## Phase 2: Reporting Module
+
+Goal: Make reporting the first real product flow, before mediation.
+
+- Build the Report Incident screen.
+- Use a horizontal progress bar for:
+  - Details
+  - Region
+  - Send
+- Create a 3-column incident category grid:
+  - Violence
+  - GBV
+  - Resource
+  - Rumor
+  - Livestock
+  - Domestic
+  - Other
+- Add category-specific colors and selected states.
+- Add validation:
+  - category required
+  - description must be at least 10 characters
+- Add approximate-area input.
+- Add microphone icon placeholder for future voice input.
+- Save UI state through `SavedStateHandle` so inputs survive rotation/process recreation.
+- Clear fields after submit.
+- Show a simple submission receipt instead of long triage text.
+- Treat GBV/domestic reports as survivor-centered and not community-broadcast reports.
+
+Status:
+- [x] Report-first flow
+- [x] Category grid
+- [x] Horizontal progress bar
+- [x] Validation
+- [x] Saved ViewModel state
+- [x] Submission receipt
+- [x] GBV/domestic safety handling
+
+---
+
+## Phase 3: Sync & Report Movement
+
+Goal: Make submitted reports move securely and anonymously from one Jirani device to trusted nearby devices.
+
+Current focus.
+
+- Convert submitted reports into local records.
+- Strip report content into sanitized payloads.
+- Create sync envelopes with:
+  - random envelope ID
+  - content hash
+  - sensitivity class
+  - allowed transports
+  - delivery count
+  - stale/expiry behavior
+- Demonstrate secure packet movement using:
+  - AES-GCM sealed payloads for MVP simulation
+  - content-hash integrity checks
+  - trusted nearby device simulation
+- Send eligible reports automatically when trusted devices are available.
+- If no device is available, keep the report queued and scanning-ready.
+- Relay each eligible report to a maximum of five unique trusted devices.
+- Stop relay when report becomes stale.
+- Show saved/submitted reports with `Sent to X/5 devices`.
+- Keep GBV/domestic reports out of nearby broadcast.
+
+Status:
+- [x] Sanitized report payload
+- [x] Sync envelope model
+- [x] AES-GCM MVP packet sealing
+- [x] Integrity verification
+- [x] Five-device relay limit
+- [x] Stale report stop rule
+- [x] Submitted reports delivery count
+- [ ] Replace simulation with Android Nearby Connections adapter
+- [ ] Add Wi-Fi Direct handoff path
+- [ ] Add QR/encrypted file handoff for sensitive reports
+
+---
+
+## Phase 4: Agreements & Local Records
+
+Goal: Preserve neutral outcomes and local records after reports are reviewed.
+
+- Improve the Agreements screen.
+- Store draft agreement records locally.
+- Use neutral labels such as Community A and Community B.
+- Prepare Room/SQLite entities for reports, sync envelopes, and agreements.
+- Add encrypted storage direction before production use.
+- Link report outcomes to agreement records only when safe.
+
+Status:
+- [x] Initial agreement screen
+- [ ] Room/SQLite models
+- [ ] Encrypted storage implementation
+- [ ] Report-to-agreement linking rules
+
+---
+
+## Phase 5: Mediation / Resolution
+
+Goal: Add mediation last, only after reporting, safety triage, and trusted review exist.
+
+Mediation must not be the first action in a dangerous case.
+
+- Redesign mediation as a second-stage review tool.
+- Block mediation for:
+  - active violence
+  - retaliation risk
+  - GBV/domestic reports
+  - unverified rumors
+- Support elders, peace committees, chiefs, religious leaders, and OSF/community partners.
+- Generate neutral questions and agreement drafts.
+- Help summarize decisions without names or blame.
+- Add mediation/resolution tests.
+
+Status:
+- [x] Initial mediation agent
+- [x] Safety warning behavior
+- [ ] Full mediation review flow
+- [ ] Resolution workflow
+- [ ] Agreement handoff from reviewed cases
+
+---
+
+## Phase 6: Testing, Review, and Demo
+
+Goal: Keep the MVP stable, privacy-aware, and demo-ready.
+
+- Run unit tests regularly:
   - `./gradlew testDebugUnitTest`
-  - `./gradlew connectedAndroidTest`
-  - `./gradlew assembleDebug`
-  - `./scripts/build-release-aab.sh`
-  - `./scripts/monitor-logs.sh`
-- Validate privacy and security behavior:
-  - anonymous participation,
-  - no PII collection,
-  - encrypted local storage,
-  - safe reporting verification.
+- Add UI/instrumentation tests for:
+  - report flow
+  - sync status
+  - submitted reports list
+  - mediation safety blocking
+- Validate privacy:
+  - no names required
+  - no exact GPS required
+  - no phone numbers in sync payloads
+  - GBV/domestic reports do not broadcast
+- Prepare a 3-5 minute hackathon demo:
+  - submit report
+  - show anonymized sync
+  - show sent-to-device count
+  - show mediation blocked until safe
 
-**Prompt Reference**: Use `prompts/initial_prompt.md` for testing guidance and validation.
+Status:
+- [x] Unit tests for reporting and sync policy
+- [x] Unit tests passing with `./gradlew testDebugUnitTest`
+- [ ] Instrumentation tests
+- [ ] Demo script
+- [ ] Final review pass
 
-## Phase 5: Review & Iteration
-- Use the SDLC mini-loop: write → test → review on each feature.
-- Review against Google Android code review guidance in `AGENTS.md`.
-- Update documentation and `CAPSTONE_SPEC.md` for new feature changes.
-- Iterate on scope to keep the MVP focused and demo-ready.
+---
 
-**Prompt Reference**: Use `prompts/initial_prompt.md` for review and iteration guidance.
+## Current Priority
 
-## Phase 6: Demo Preparation
-- Prepare a sharp 3–5 minute walkthrough highlighting:
-  - the problem and real-world impact,
-  - the offline-first solution,
-  - Codex integration across workflow,
-  - the MVP features and future roadmap.
-- Ensure the app runs on low-spec Android devices or emulator.
-- Document the optional Rust backend as a later-stage analytics and sync gateway.
+We are currently in **Phase 3: Sync & Report Movement**.
 
-**Prompt Reference**: Use `prompts/initial_prompt.md` for demo preparation and final validation.
+Next work:
 
-## Development Checklist
-This checklist guides Codex through iterative development, testing, and reviewing. Check off items as completed, and iterate using the SDLC mini-loop (write → test → review).
-
-### Setup & Planning
-- [ ] Review `CAPSTONE_SPEC.md` and `AGENTS.md` for alignment.
-- [ ] Set up Android Studio/IntelliJ and VS Code with Codex/Copilot.
-- [ ] Verify Gradle wrapper, Kotlin toolchain, and Android SDK.
-- [ ] Create/update `config.toml` and scripts in `scripts/` directory.
-
-**Prompt Reference**: `prompts/initial_prompt.md`
-
-### Core Architecture
-- [ ] Define Room/SQLite models for local storage (disputes, agreements, reports).
-- [ ] Implement encrypted storage for sensitive data.
-- [x] Design initial Jetpack Compose screen for mediation assistance.
-- [ ] Design Jetpack Compose screens for agreements, reporting, and sync status.
-- [ ] Implement offline-first sync placeholders (local data flow, delayed sync simulation).
-- [x] Build initial AI mediation layer with prompt-driven logic and rule-based fallback.
-- [x] Add first agent-first domain package for mediation, reporting, summary, and translation.
-
-### Feature Implementation
-- [ ] Mediation Assistant: Accept conflict descriptions and generate neutral responses.
-- [ ] Community Agreement Records: Save agreements, schedules, and notes locally.
-- [ ] Anonymous Reporting: Support threat reports with verification guidance.
-- [ ] Translation: Integrate English/Swahili support with extensibility.
-- [ ] Reporting Workflows: Ensure anonymous safety alerts with trusted checks.
-
-**Prompt Reference**: `prompts/mediation_prompt.md`, `prompts/translation_prompt.md`, `prompts/agreement_summary_prompt.md`, `prompts/reporting_prompt.md`
-
-### Testing & Validation
-- [x] Write initial unit tests for mediation and reporting agent logic.
-- [ ] Write unit tests for data models after Room entities are introduced.
-- [ ] Write instrumentation/UI tests for Compose screens and user flows.
-- [ ] Run `./scripts/install-debug.sh` to install on device/emulator.
-- [ ] Run `./scripts/list-devices.sh` to verify devices.
-- [ ] Execute `./gradlew testDebugUnitTest` for unit tests.
-- [ ] Execute `./gradlew connectedAndroidTest` for UI tests.
-- [ ] Build debug APK with `./gradlew assembleDebug`.
-- [ ] Build release AAB with `./scripts/build-release-aab.sh`.
-- [ ] Monitor logs with `./scripts/monitor-logs.sh`.
-- [ ] Validate privacy: No PII, encrypted storage, anonymous participation.
-- [ ] Test on low-spec devices/emulators for performance.
-
-**Prompt Reference**: `prompts/initial_prompt.md`
-
-### Review & Iteration
-- [ ] Follow SDLC mini-loop: Write code, test, review for each feature.
-- [ ] Review code against Google Android guidelines in `AGENTS.md`.
-- [ ] Update `CAPSTONE_SPEC.md` and docs for changes.
-- [ ] Iterate on MVP scope to stay focused.
-- [ ] Prepare demo walkthrough and ensure app runs smoothly.
-
-**Prompt Reference**: `prompts/initial_prompt.md`
-
-## Risks & Mitigations
-- **Peer-to-peer sync complexity**: Focus the MVP on local storage and delayed sync simulation first, then add BLE/Wi-Fi Direct concepts later.
-- **On-device AI limitations**: Build prompt-driven mediation logic with a simple rule-based fallback for offline use.
-- **Anonymity vs trust**: Keep personal identifiers optional and provide trusted verification guidance for safety reports.
-- **Low-spec device performance**: Optimize Compose UI and reduce background sync work; test on older/emulator hardware early.
-- **Scope creep**: Maintain the MVP boundary around mediation, agreement records, anonymous reporting, and basic translation.
+1. Polish the Sync screen as the saved-reports and delivery-status area.
+2. Make the simulated trusted-device flow clearer for the demo.
+3. Prepare the future adapter boundary for Android Nearby Connections.
+4. Keep mediation/resolution as the last major phase.
