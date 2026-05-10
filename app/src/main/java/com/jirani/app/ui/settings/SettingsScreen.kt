@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,7 +53,6 @@ import com.jirani.app.data.local.AppLanguage
 import com.jirani.app.data.local.AppThemeMode
 import com.jirani.app.ui.theme.JiraniTheme
 
-private val PaperBackground = Color(0xFFF9F7F2)
 private val CardShape = RoundedCornerShape(8.dp)
 private val SegmentShape = RoundedCornerShape(28.dp)
 
@@ -67,7 +67,7 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(PaperBackground)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -138,6 +138,7 @@ fun SettingsScreen(
                     trailingIcon = {
                         ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                     },
+                    colors = settingsTextFieldColors(),
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
@@ -179,7 +180,7 @@ fun DecoyPasscodeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(PaperBackground)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -199,6 +200,7 @@ fun DecoyPasscodeScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 singleLine = true,
+                colors = settingsTextFieldColors(),
             )
             OutlinedTextField(
                 value = uiState.confirmCode,
@@ -209,6 +211,7 @@ fun DecoyPasscodeScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                 singleLine = true,
+                colors = settingsTextFieldColors(),
             )
             Button(
                 onClick = viewModel::saveCode,
@@ -220,12 +223,14 @@ fun DecoyPasscodeScreen(
             }
         }
 
-        Text(
-            text = uiState.message,
-            modifier = Modifier.padding(bottom = 10.dp),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.secondary,
-        )
+        if (uiState.message.isNotBlank()) {
+            Text(
+                text = uiState.message,
+                modifier = Modifier.padding(bottom = 10.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+        }
     }
 }
 
@@ -248,7 +253,8 @@ private fun SettingsCard(
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         shape = CardShape,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         tonalElevation = 1.dp,
@@ -346,7 +352,11 @@ private fun SegmentButton(
         onClick = onClick,
         modifier = modifier.heightIn(min = 52.dp),
         color = background,
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
     ) {
         Row(
             modifier = Modifier
@@ -380,6 +390,21 @@ private fun SegmentButton(
         }
     }
 }
+
+@Composable
+private fun settingsTextFieldColors() = TextFieldDefaults.colors(
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    cursorColor = MaterialTheme.colorScheme.primary,
+    focusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+)
 
 private data class ThemeOption(
     val mode: AppThemeMode,

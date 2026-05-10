@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,8 +44,6 @@ import com.jirani.app.R
 import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.theme.JiraniTheme
 
-private val PaperBackground = Color(0xFFF9F7F2)
-private val BrandGreen = Color(0xFF1B5E20)
 private val ViolenceRed = Color(0xFFC62828)
 private val GbvOrange = Color(0xFFE65100)
 private val ResourceBlue = Color(0xFF1565C0)
@@ -65,7 +62,8 @@ fun ReportingScreen(
 
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = PaperBackground,
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
         Column(
             modifier = Modifier
@@ -141,8 +139,8 @@ private fun ReportProgressBar(currentStep: ReportStep) {
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 8.dp),
-            color = BrandGreen,
-            trackColor = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -153,7 +151,11 @@ private fun ReportProgressBar(currentStep: ReportStep) {
                     text = label,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (step == currentStep) FontWeight.Bold else FontWeight.Medium,
-                    color = if (step.ordinal <= currentStep.ordinal) BrandGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (step.ordinal <= currentStep.ordinal) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                 )
             }
         }
@@ -184,7 +186,7 @@ private fun DetailsStep(
                     Icon(
                         painter = painterResource(R.drawable.ic_mic),
                         contentDescription = "Record voice note",
-                        tint = BrandGreen,
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             },
@@ -331,10 +333,10 @@ private fun FooterButton(
             .fillMaxWidth()
             .defaultMinSize(minHeight = 48.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = BrandGreen,
-            contentColor = Color.White,
-            disabledContainerColor = BrandGreen.copy(alpha = 0.28f),
-            disabledContentColor = Color.White.copy(alpha = 0.72f),
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
         ),
     ) {
         Text(text, fontWeight = FontWeight.Bold)
@@ -354,15 +356,19 @@ private fun SubmissionReceiptPanel(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale),
-        color = BrandGreen.copy(alpha = 0.12f),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.74f),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, BrandGreen.copy(alpha = 0.35f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Report submitted", fontWeight = FontWeight.SemiBold, color = BrandGreen)
+            Text(
+                text = "Report submitted",
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
             Text(message)
         }
     }
@@ -370,11 +376,17 @@ private fun SubmissionReceiptPanel(
 
 @Composable
 private fun reportTextFieldColors() = TextFieldDefaults.colors(
-    focusedIndicatorColor = BrandGreen,
-    focusedLabelColor = BrandGreen,
-    cursorColor = BrandGreen,
-    focusedContainerColor = Color.White,
-    unfocusedContainerColor = Color.White,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+    unfocusedIndicatorColor = MaterialTheme.colorScheme.outline,
+    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    cursorColor = MaterialTheme.colorScheme.primary,
+    focusedContainerColor = MaterialTheme.colorScheme.surface,
+    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+    focusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+    unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
 )
 
 private data class ReportCategory(
@@ -404,6 +416,7 @@ internal fun ScreenTitle(
             text = title,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
             text = subtitle,
