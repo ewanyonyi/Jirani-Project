@@ -47,11 +47,11 @@ fun MediationScreen(
     onQuickExit: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val topics = listOf("Water", "Land", "Grazing", "Family", "Neighbor", "Safety")
+    val topics = listOf("Water", "Grazing", "Boundary", "Livestock", "Rumor", "Review")
     val recentGuidance = listOf(
-        RecentGuidance("Water access concern", "Our neighbors blocked access to the water point."),
-        RecentGuidance("Grazing route disagreement", "Families disagree about grazing access near the boundary."),
-        RecentGuidance("Broken agreement", "An earlier agreement was not followed and tension is rising."),
+        RecentGuidance("Kamba-Somali resource tension", "Camels crossed into farms, rumors spread, and elders need a safe way to review facts."),
+        RecentGuidance("Water access concern", "Both sides need access to the same water point after a report was verified."),
+        RecentGuidance("Retaliation risk", "There was an attack and people are calling for revenge near the market road."),
     )
     val hasConversation = uiState.messages.size > 1
 
@@ -132,9 +132,9 @@ private fun ChatHeader(onQuickExit: () -> Unit) {
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text("Jirani", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text("Mediation", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                text = "Conversation stays on this phone.",
+                text = "Use only after report review.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -154,14 +154,14 @@ private fun ResolveHero(onQuickExit: () -> Unit) {
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text("Hi, I'm Jirani", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("After local review", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                text = "What happened?",
+                text = "Can people meet safely?",
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = "Share only what feels safe. No names needed.",
+                text = "Mediation should be opened by accepted elders, peace committees, chiefs, religious leaders, or OSF/community partners.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -202,8 +202,8 @@ private fun CalmAssistCard(onUse: () -> Unit) {
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("Calm response", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text("Get neutral wording and a safe next step.", style = MaterialTheme.typography.bodyMedium)
+                Text("Readiness check", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text("Check whether this belongs in mediation or back in safety reporting.", style = MaterialTheme.typography.bodyMedium)
             }
             OutlinedButton(onClick = onUse) {
                 Text("Use")

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jirani.app.R
+import com.jirani.app.data.local.SyncEnvelope
 import com.jirani.app.domain.agent.SafetyReportGuidance
 import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.theme.JiraniTheme
@@ -56,8 +57,8 @@ fun ReportingScreen(
             verticalAlignment = Alignment.Top,
         ) {
             ScreenTitle(
-                title = "Alerts",
-                subtitle = "Careful local reports.",
+                title = "Report",
+                subtitle = "Start with what happened, not with mediation.",
                 modifier = Modifier.weight(1f),
             )
             QuickExitButton(onClick = onQuickExit)
@@ -65,11 +66,11 @@ fun ReportingScreen(
         Stepper(uiState.step)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ThreatChoice(
-                label = "Threat",
-                selected = uiState.threatType == "Threat",
+                label = "Violence",
+                selected = uiState.threatType == "Violence",
                 iconRes = R.drawable.ic_threat_alert,
                 modifier = Modifier.weight(1f),
-                onClick = { viewModel.selectThreat("Threat") },
+                onClick = { viewModel.selectThreat("Violence") },
             )
             ThreatChoice(
                 label = "Rumor",
@@ -79,11 +80,11 @@ fun ReportingScreen(
                 onClick = { viewModel.selectThreat("Rumor") },
             )
             ThreatChoice(
-                label = "Movement",
-                selected = uiState.threatType == "Movement",
+                label = "Livestock",
+                selected = uiState.threatType == "Livestock",
                 iconRes = R.drawable.ic_threat_rustling,
                 modifier = Modifier.weight(1f),
-                onClick = { viewModel.selectThreat("Movement") },
+                onClick = { viewModel.selectThreat("Livestock") },
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -94,6 +95,22 @@ fun ReportingScreen(
                 modifier = Modifier.weight(1f),
                 onClick = { viewModel.selectThreat("Resource") },
             )
+            ThreatChoice(
+                label = "Domestic",
+                selected = uiState.threatType == "Domestic",
+                iconRes = R.drawable.ic_shield_report,
+                modifier = Modifier.weight(1f),
+                onClick = { viewModel.selectThreat("Domestic") },
+            )
+            ThreatChoice(
+                label = "GBV",
+                selected = uiState.threatType == "GBV",
+                iconRes = R.drawable.ic_lock,
+                modifier = Modifier.weight(1f),
+                onClick = { viewModel.selectThreat("GBV") },
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             ThreatChoice(
                 label = "Other",
                 selected = uiState.threatType == "Other",
@@ -108,7 +125,7 @@ fun ReportingScreen(
             onValueChange = viewModel::updateLocation,
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Approximate area") },
-            placeholder = { Text("Example: eastern market path") },
+            placeholder = { Text("Example: road between Tseikuru and Garissa side") },
         )
         OutlinedTextField(
             value = uiState.details,
@@ -116,8 +133,8 @@ fun ReportingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(104.dp),
-            label = { Text("What risk did you notice?") },
-            placeholder = { Text("No names, phone numbers, or exact addresses.") },
+            label = { Text("What happened?") },
+            placeholder = { Text("Example: camels entered a farm, or a survivor needs private help. No names.") },
             maxLines = 5,
         )
         VerificationReminder()
@@ -128,9 +145,10 @@ fun ReportingScreen(
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Create Safety Report")
+            Text("Save for Local Review")
         }
         uiState.guidance?.let { ReportingGuidancePanel(it) }
+        uiState.syncEnvelope?.let { ReportMovementPanel(it) }
     }
 }
 
@@ -139,7 +157,7 @@ private fun Stepper(step: ReportStep) {
     val labels = mapOf(
         ReportStep.Threat to "1. Details",
         ReportStep.Location to "2. Region",
-        ReportStep.Verify to "3. Check Locally",
+        ReportStep.Verify to "3. Elder Check",
     )
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -263,8 +281,8 @@ private fun VerificationReminder() {
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Local verification reminder", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onTertiaryContainer)
-            Text("Share only what you observed or trust. Mark rumors as unverified.")
+            Text("Local review comes first", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onTertiaryContainer)
+            Text("Community conflicts go to trusted local review. Domestic and GBV reports stay private for survivor-chosen support.")
         }
     }
 }
@@ -282,10 +300,55 @@ private fun ReportingGuidancePanel(guidance: SafetyReportGuidance) {
         ) {
             Text(guidance.incidentSummary, fontWeight = FontWeight.SemiBold)
             Text("Threat type: ${guidance.threatType}")
-            Text("Safe next steps", fontWeight = FontWeight.SemiBold)
+            Text("Triage: ${guidance.triageOutcome}")
+            Text("Mediation: ${guidance.mediationReadiness}")
+            Text("Who to involve", fontWeight = FontWeight.SemiBold)
+            guidance.localActorsToNotify.forEach { Text("- $it") }
+            Text("Next steps", fontWeight = FontWeight.SemiBold)
             guidance.safeNextSteps.forEach { Text("- $it") }
         }
     }
+}
+
+@Composable
+private fun ReportMovementPanel(envelope: SyncEnvelope) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text("How this report can move", fontWeight = FontWeight.SemiBold)
+            Text("Audience: ${envelope.audienceTier.label()}")
+            Text("State: ${envelope.syncState.label()}")
+            Text("Allowed paths: ${envelope.allowedTransports.joinToString { it.label() }}")
+            Text("Shared payload keeps only type, general area, time window, risk, and verification status.")
+        }
+    }
+}
+
+private fun com.jirani.app.data.local.SyncAudienceTier.label(): String = when (this) {
+    com.jirani.app.data.local.SyncAudienceTier.TrustedVerifier -> "trusted verifier"
+    com.jirani.app.data.local.SyncAudienceTier.ProtectionActors -> "protection actors"
+    com.jirani.app.data.local.SyncAudienceTier.SurvivorSupportOnly -> "survivor support only"
+    com.jirani.app.data.local.SyncAudienceTier.CommunityAlert -> "community alert"
+}
+
+private fun com.jirani.app.data.local.SyncState.label(): String = when (this) {
+    com.jirani.app.data.local.SyncState.LocalHold -> "held on this phone"
+    com.jirani.app.data.local.SyncState.WaitingForTrustedPeer -> "waiting for trusted peer"
+    com.jirani.app.data.local.SyncState.ReadyForNearbyShare -> "ready for nearby sharing"
+    com.jirani.app.data.local.SyncState.SharedToTrustedPeer -> "shared to trusted peer"
+}
+
+private fun com.jirani.app.data.local.SyncTransport.label(): String = when (this) {
+    com.jirani.app.data.local.SyncTransport.NearbyConnections -> "Nearby Connections"
+    com.jirani.app.data.local.SyncTransport.WifiDirect -> "Wi-Fi Direct"
+    com.jirani.app.data.local.SyncTransport.AndroidShareSheet -> "Android Sharesheet"
+    com.jirani.app.data.local.SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
 }
 
 @Composable

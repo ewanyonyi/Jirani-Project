@@ -33,15 +33,15 @@ class MediationAgent : JiraniAgent<MediationRequest, MediationGuidance> {
         val lower = description.lowercase()
         val concerns = buildConcerns(lower)
         val safetyNote = when {
-            hasSafetyRisk(lower) -> "Prioritize immediate safety and involve trusted local leaders before direct confrontation."
-            else -> "Verify key facts with trusted community members before escalation."
+            hasSafetyRisk(lower) -> "Mediation is not ready while threats, weapons, retaliation, or attacks are active."
+            else -> "Mediation should be opened by trusted elders, a peace committee, OSF/community partner, or another accepted neutral actor after local review."
         }
 
         return MediationGuidance(
             summary = "A community concern needs calm discussion and neutral documentation.",
             concerns = concerns,
             recommendations = buildRecommendations(lower),
-            nextStep = "Record any shared commitments with anonymous labels such as Party A and Party B.",
+            nextStep = buildNextStep(lower),
             safetyNote = safetyNote,
         )
     }
@@ -50,7 +50,7 @@ class MediationAgent : JiraniAgent<MediationRequest, MediationGuidance> {
         val concerns = mutableListOf<String>()
         if (text.containsAny("water", "well", "river", "pump")) concerns += "shared water access"
         if (text.containsAny("land", "field", "grazing", "boundary")) concerns += "land or grazing access"
-        if (text.containsAny("threat", "armed", "machete", "attack", "violence")) concerns += "safety risk"
+        if (text.containsAny("threat", "armed", "machete", "gun", "attack", "violence", "retaliation", "revenge", "killed")) concerns += "safety risk"
         if (text.containsAny("rumor", "heard", "claim")) concerns += "unverified information"
         if (concerns.isEmpty()) concerns += "trust, fairness, and shared expectations"
         return concerns
@@ -63,18 +63,27 @@ class MediationAgent : JiraniAgent<MediationRequest, MediationGuidance> {
         )
 
         if (text.containsAny("water", "well", "river", "pump")) {
-            recommendations += "Discuss a temporary access schedule while the community verifies the facts."
+            recommendations += "Ask elders from both sides to confirm the water point, users, and temporary access hours before any agreement is written."
         } else if (text.containsAny("land", "field", "grazing", "boundary")) {
-            recommendations += "Map the disputed access point and agree on a short review period."
+            recommendations += "Let elders or grazing committee members mark the disputed route or boundary and agree on a short review period."
+        } else if (hasSafetyRisk(text)) {
+            recommendations += "Pause mediation and route the case back to safety reporting until trusted actors say people can meet safely."
         } else {
-            recommendations += "Invite a trusted mediator to help document practical next steps."
+            recommendations += "Invite accepted elders, a religious leader, a peace committee member, or OSF/community partner to help document practical next steps."
         }
 
         return recommendations
     }
 
+    private fun buildNextStep(text: String): String =
+        if (hasSafetyRisk(text)) {
+            "Keep this as a safety report until local protection and verification are complete."
+        } else {
+            "If both sides accept the process, record commitments with anonymous labels such as Community A and Community B."
+        }
+
     private fun hasSafetyRisk(text: String): Boolean =
-        text.containsAny("threat", "armed", "machete", "attack", "violence", "weapon")
+        text.containsAny("threat", "armed", "machete", "gun", "attack", "violence", "weapon", "retaliation", "revenge", "killed")
 
     private fun String.containsAny(vararg terms: String): Boolean =
         terms.any { contains(it) }

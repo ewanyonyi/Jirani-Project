@@ -12,6 +12,7 @@ The core rule is that Jirani works locally first. Sharing is delayed, consent-ba
 - Each record and sync envelope uses a random non-PII identifier.
 - Sync metadata is stored separately from record content.
 - Optional server upload uses minimized or aggregated payloads unless a community explicitly authorizes encrypted envelope handoff.
+- Domestic violence and GBV reports are survivor-centered records. They are not community alerts, are not mediation cases, and are not broadly gossiped across nearby devices.
 
 ## Core Objects
 
@@ -22,6 +23,7 @@ SafetyReportRecord
   - generalLocation
   - timeWindow
   - incidentSummary
+  - sensitivity: community, protection, or survivor_centered
   - verificationStatus
   - expiresAt
 
@@ -34,7 +36,23 @@ SyncEnvelope
   - lastModifiedAt bucket
   - audienceTier
   - syncState
+  - allowedTransports
 ```
+
+## Report Sensitivity Classes
+
+| Class | Examples | Movement Rule |
+|---|---|---|
+| `community` | grazing dispute, water access, rumor after verification | Can move to trusted verifiers through Nearby Connections, Wi-Fi Direct, Android Sharesheet, QR, or encrypted file. |
+| `protection` | attack, armed group, retaliation, road danger | Moves only to trusted protection actors such as elders, chiefs, peace committees, or approved OSF/community contacts. |
+| `survivor_centered` | domestic violence, GBV, sexual violence, defilement | Held locally by default. Shared only with a survivor-chosen support actor through private handoff such as encrypted file, QR, or Android Sharesheet. No community alert. No mediation. |
+
+## Transport Choices
+
+- **Nearby Connections:** used when a trusted verifier device is nearby and both people agree to exchange sanitized envelopes.
+- **Wi-Fi Direct:** used for larger local handoff where devices can connect directly without internet.
+- **Android Sharesheet:** used for explicit, user-driven sharing to a trusted app or contact.
+- **QR or encrypted file handoff:** used for the smallest and most sensitive payloads, especially survivor-centered reports.
 
 ## Flow A: BLE, Nearby Share, or Wi-Fi Direct Enabled
 
@@ -53,10 +71,11 @@ Local sync queue
   v
 Sanitized sync payload
   |
-  | 4. Available transport selected
-  |    - BLE / Nearby Connections
-  |    - Wi-Fi Direct
-  |    - Android Sharesheet
+  | 4. Available transport selected by sensitivity
+  |    - Nearby Connections for trusted verifier exchange
+  |    - Wi-Fi Direct for local direct transfer
+  |    - Android Sharesheet for explicit user handoff
+  |    - QR/encrypted file for sensitive private handoff
   v
 Device B
   |
@@ -68,7 +87,7 @@ Device B local storage
   v
 Verified or rejected local status
   |
-  | 7. Device B gossips only eligible envelopes onward
+  | 7. Device B relays only eligible envelopes onward
   v
 Other trusted devices / community gateway
   |
@@ -150,7 +169,7 @@ pending_verification
   -> rejected_or_expired
 ```
 
-Only `community_alert_ready` and `aggregated_upload_ready` records should be eligible for broad sharing or optional server analytics.
+Only `community_alert_ready` and `aggregated_upload_ready` records should be eligible for broad sharing or optional server analytics. Domestic violence and GBV records should not enter broad sharing; they remain survivor-support records unless a trained support process changes their status with explicit consent and legal/child-protection safeguards.
 
 ## Integrity Without Public Blockchain
 Jirani can use blockchain-inspired integrity without exposing sensitive reports on a public chain:

@@ -2,6 +2,7 @@ package com.jirani.app.ui.reporting
 
 import androidx.lifecycle.ViewModel
 import com.jirani.app.data.local.LocalFirstUiStore
+import com.jirani.app.data.local.SyncEnvelope
 import com.jirani.app.domain.agent.ReportingAgent
 import com.jirani.app.domain.agent.SafetyReportGuidance
 import com.jirani.app.domain.agent.SafetyReportRequest
@@ -21,6 +22,7 @@ data class ReportingUiState(
     val generalLocation: String = "",
     val details: String = "",
     val guidance: SafetyReportGuidance? = null,
+    val syncEnvelope: SyncEnvelope? = null,
 )
 
 class ReportingViewModel : ViewModel() {
@@ -49,7 +51,11 @@ class ReportingViewModel : ViewModel() {
         val guidance = reportingAgent.process(
             SafetyReportRequest("${state.threatType}. ${state.generalLocation}. ${state.details}"),
         )
-        _uiState.update { it.copy(guidance = guidance) }
-        LocalFirstUiStore.enqueueSync()
+        val envelope = LocalFirstUiStore.saveSafetyReport(
+            reportType = guidance.threatType,
+            generalLocation = state.generalLocation,
+            details = state.details,
+        )
+        _uiState.update { it.copy(guidance = guidance, syncEnvelope = envelope) }
     }
 }

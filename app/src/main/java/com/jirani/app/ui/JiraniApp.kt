@@ -69,9 +69,9 @@ private enum class JiraniDestination(
     val navLabel: String,
     val iconRes: Int,
 ) {
-    Mediation("mediation", "Resolve", "Resolve", R.drawable.ic_nav_mediation),
+    Safety("safety", "Report", "Report", R.drawable.ic_nav_safety),
+    Mediation("mediation", "Mediation", "Mediate", R.drawable.ic_nav_mediation),
     Vault("vault", "Agreements", "Agree", R.drawable.ic_nav_vault),
-    Safety("safety", "Alerts", "Alerts", R.drawable.ic_nav_safety),
     Network("network", "Sync", "Sync", R.drawable.ic_nav_network),
 }
 
@@ -89,7 +89,7 @@ fun JiraniApp() {
         val drawerState = rememberDrawerState(DrawerValue.Closed)
         val scope = rememberCoroutineScope()
         val backStackEntry by navController.currentBackStackEntryAsState()
-        val currentRoute = backStackEntry?.destination?.route ?: JiraniDestination.Mediation.route
+        val currentRoute = backStackEntry?.destination?.route ?: JiraniDestination.Safety.route
         val network by LocalFirstUiStore.network.collectAsStateWithLifecycle()
         val securitySettings by LocalFirstUiStore.securitySettings.collectAsStateWithLifecycle()
         val showChrome = currentRoute != DecoyRoute
@@ -209,7 +209,7 @@ fun JiraniApp() {
             ) { innerPadding ->
                 NavHost(
                     navController = navController,
-                    startDestination = JiraniDestination.Mediation.route,
+                    startDestination = JiraniDestination.Safety.route,
                     modifier = Modifier.padding(innerPadding),
                 ) {
                     composable(JiraniDestination.Mediation.route) { MediationScreen(onQuickExit = closeApp) }
@@ -221,7 +221,7 @@ fun JiraniApp() {
                         DecoyScreen(
                             unlockCode = securitySettings.discreetCode,
                             onUnlock = {
-                                navController.navigate(JiraniDestination.Mediation.route) {
+                                navController.navigate(JiraniDestination.Safety.route) {
                                     popUpTo(DecoyRoute) {
                                         inclusive = true
                                     }
@@ -256,14 +256,14 @@ private fun JiraniDrawer(
             DrawerHeader()
             HorizontalDivider()
             DrawerSection("Peace Tools")
-            DrawerItem(R.drawable.ic_nav_mediation, "Resolve", "Step-by-step support") {
+            DrawerItem(R.drawable.ic_nav_safety, "Report", "Start with a careful local report") {
+                onNavigate(JiraniDestination.Safety.route)
+            }
+            DrawerItem(R.drawable.ic_nav_mediation, "Mediation", "After elders or reviewers clear it") {
                 onNavigate(JiraniDestination.Mediation.route)
             }
             DrawerItem(R.drawable.ic_nav_vault, "Agreements", "Private local drafts") {
                 onNavigate(JiraniDestination.Vault.route)
-            }
-            DrawerItem(R.drawable.ic_nav_safety, "Alerts", "Careful safety reports") {
-                onNavigate(JiraniDestination.Safety.route)
             }
             DrawerItem(R.drawable.ic_nav_network, "Sync", "Nearby sharing status") {
                 onNavigate(JiraniDestination.Network.route)

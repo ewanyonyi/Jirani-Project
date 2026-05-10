@@ -11,8 +11,9 @@
 - DisputeRecord: id, description, concerns, status, createdAt, updatedAt
 - MediationGuidanceRecord: id, disputeId, summary, recommendations, safetyNote, createdAt
 - AgreementRecord: id, disputeId, neutralSummary, commitments, reviewDate, createdAt
-- SafetyReportRecord: id, threatType, generalLocation, timeWindow, incidentSummary, verificationStatus, expiresAt, createdAt
-- SyncEnvelope: id, recordType, recordId, contentHash, version, lastModifiedAt, audienceTier, syncState
+- SafetyReportRecord: id, reportType, generalLocation, timeWindow, incidentSummary, sensitivity, verificationStatus, expiresAt, createdAt
+- SanitizedReportPayload: reportType, generalArea, timeWindow, observedRisk, verificationStatus, sensitivity
+- SyncEnvelope: id, recordType, recordId, contentHash, version, lastModifiedAt, audienceTier, syncState, allowedTransports
 
 All `id` values should be cryptographically random non-PII identifiers. They must not be derived from phone numbers, device IDs, network addresses, GPS, user names, or exact timestamps.
 
@@ -21,10 +22,11 @@ All `id` values should be cryptographically random non-PII identifiers. They mus
 - DisputeRecord can have zero or more AgreementRecords.
 - SafetyReportRecord is independent from disputes unless a community explicitly links it locally.
 - SyncEnvelope tracks local-first sharing without storing personal identity.
+- Domestic violence and GBV records use `survivor_centered` sensitivity and must not be linked to a mediation case by default.
 
 ## Storage Direction
 - Local MVP: Room database backed by SQLite.
 - Sensitive fields: encrypted storage pattern before real-world use.
-- Sync: delayed peer-to-peer exchange with conflict-aware envelopes.
+- Sync: delayed nearby exchange with conflict-aware envelopes and sensitivity-based transport rules.
 - Cloud/backend: optional prototype extension, not required for core participation.
 - Information flow: see `INFORMATION_FLOW.md` for BLE/Nearby/Wi-Fi Direct enabled and disabled sharing paths through an optional trusted Rust analytics gateway.

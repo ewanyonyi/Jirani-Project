@@ -2,49 +2,52 @@
 
 # Project Identity
 
-## **Jirani**
+## Jirani
 
-> *“An offline-first peace coordination platform that helps communities communicate, mediate disputes, and preserve trusted agreements during conflict and displacement.”*
+> "An offline-first peace coordination platform that helps communities report conflict safely, verify facts locally, mediate only when safe, and preserve trusted agreements during conflict and displacement."
 
-Derived from the Swahili word **“Jirani” (neighbor)**, the name reflects the belief that peace is built and sustained at the community level through dialogue, trust, and cooperation.
+Derived from the Swahili word **Jirani** (neighbor), the name reflects the belief that peace is built and sustained at the community level through dialogue, trust, and cooperation.
 
 ---
 
 # 1. Vision & Problem Statement
 
-Jirani is an offline-first, AI-assisted PeaceTech platform designed to help communities prevent conflict escalation, coordinate peacefully during instability, and recover collaboratively after disputes.
+Jirani is an offline-first PeaceTech Android app designed to help communities:
 
-This project is designed to meet the Open Society Foundations PeaceTech challenge by supporting displaced, insecure, and multilingual communities with people-centered, low-connectivity tools that promote accountability, safety, and local agency.
+- report conflict and threats safely;
+- verify facts through trusted local actors;
+- protect people before attempting dialogue;
+- support elder-led mediation only when it is safe;
+- preserve local agreements and follow-up records.
 
-This project is built with Codex integration as a core workflow principle, using prompts, agents, and documented planning artifacts to make the design and implementation process transparent and repeatable.
+This project is designed for the Open Society Foundations PeaceTech challenge. It supports displaced, insecure, and multilingual communities with practical, low-connectivity tools that promote accountability, safety, privacy, and local agency.
 
-Using cross-community tensions and resource-sharing disputes such as those experienced in pastoralist and border communities as a guiding case study, Jirani addresses the breakdown of centralized communication and mediation systems by empowering local leaders, elders, and residents with secure, resilient, low-bandwidth tools.
+Using recent Kamba-Somali conflict patterns in Kenya as a guiding case study, Jirani addresses the gap between early warning and mediation. Reports about livestock movement, grazing pressure, water access, rumors, retaliation, road closures, domestic violence, GBV, or attacks are captured first. Mediation comes later, only when trusted local actors decide people can meet safely.
 
 The platform is designed for environments where:
 
-- internet access is unreliable,
-- institutions may be inaccessible,
-- trust is fragile,
-- communities are displaced or recovering from conflict,
-- and people need practical tools to communicate and preserve agreements safely.
+- internet access is unreliable;
+- institutions may be inaccessible or slow to respond;
+- trust is fragile;
+- communities are displaced or recovering from conflict;
+- users may face personal risk if their participation is exposed;
+- people need simple tools to coordinate without depending on a central server.
 
 ---
 
 # 2. Core PeaceTech Objectives
 
-Jirani focuses on three key goals:
+## A. Safe Conflict Reporting
 
-## A. Conflict Prevention
+Help communities capture what happened without exposing reporters, survivors, or witnesses, and without turning rumors into public facts.
 
-Help communities de-escalate disputes before they become violent.
+## B. Local Verification & Protection
 
-## B. Community Mediation
+Separate active danger, rumor, survivor-centered harm, and mediation-ready resource disputes so the correct people act first.
 
-Support local leaders and residents in documenting peaceful resolutions, community decisions, and resource-sharing agreements.
+## C. Elder-Led Mediation & Recovery
 
-## C. Recovery & Coordination
-
-Enable trusted communication and synchronization of critical community information during displacement, instability, or recovery.
+Support accepted local actors in documenting peaceful resolutions, community decisions, resource-sharing agreements, and follow-up.
 
 ---
 
@@ -52,291 +55,295 @@ Enable trusted communication and synchronization of critical community informati
 
 | Constraint | Jirani Response |
 |---|---|
-| **Displaced Populations** | Mobile-first experience optimized for unstable environments and low-spec Android devices. |
-| **Low Bandwidth** | Offline-first architecture with delayed synchronization when connectivity becomes available. |
-| **Secure Access / Anonymity** | No mandatory personal identifiers. Users may operate anonymously using recovery phrases instead of phone numbers or emails. |
-| **Decentralized Resilience** | Designed for peer-to-peer device sync, delayed gateway handoff, and minimal central server dependence to preserve a structural digital moat. |
-| **Multilingual Communities** | Initial support for English and Swahili, with architecture designed for Somali, Arabic, French, Portuguese, and local languages. |
-| **Adaptability Across Regions** | Context-agnostic modular design allowing communities to customize mediation flows, resource categories, and local governance structures. |
+| **Displaced populations** | Mobile-first experience optimized for unstable environments and low-spec Android devices. |
+| **Low bandwidth** | Offline-first records and delayed nearby sharing when connectivity or trusted devices are available. |
+| **Secure access / anonymity** | No mandatory phone numbers, government IDs, exact GPS, or personal profiles. |
+| **Privacy risk** | Sanitized sync payloads, anonymous labels, local-first storage, and survivor-centered handling for GBV/domestic reports. |
+| **Decentralized resilience** | Trusted nearby sharing through Android-native handoff paths before optional gateway upload. |
+| **Multilingual communities** | English and Swahili first, with Somali and Kamba as priority expansion languages. |
+| **Adaptability across regions** | Modular report categories, mediation flows, local actor labels, and agreement templates. |
 
 ---
 
-# 4. Core Features
+# 4. Core Product Flow
 
-## A. AI Mediation Assistant
+## Step 1: Report What Happened
 
-An AI-powered assistant that helps users:
+The app starts with reporting, not mediation. A community member can record:
 
-- de-escalate emotionally charged situations,
-- communicate respectfully,
-- summarize disputes neutrally,
-- identify possible common ground,
-- and propose practical next steps.
+- what happened;
+- approximate area, not exact home or GPS;
+- time window;
+- whether the information was observed, heard as rumor, or received from another person;
+- immediate risk such as violence, retaliation, livestock movement, blocked water, road closure, hate speech, property destruction, domestic violence, or GBV.
 
-### Example
+The report form must not ask for names, phone numbers, ID numbers, exact homes, or photos of faces.
 
-A user types:
+## Step 2: Local Review & Triage
 
-> “Our neighbors blocked access to the water point.”
+Jirani classifies the next action:
 
-Jirani responds by:
+- **Protection first:** active attack, weapons, killings, arson, road danger, or revenge calls.
+- **Verify first:** rumor, incitement, or unconfirmed claim.
+- **Elder review:** grazing, water, boundary, livestock, market, or resource dispute where people may be able to meet safely.
+- **Survivor support only:** domestic violence, GBV, sexual violence, defilement, or intimate partner abuse.
 
-- suggesting calm communication approaches,
-- proposing mediation steps,
-- identifying what facts should be clarified,
-- and generating neutral discussion prompts.
+Domestic violence and GBV reports are not mediation cases and are not community alerts. They stay local by default and may be shared only with a survivor-chosen support actor or trained protection focal person.
+
+## Step 3: Mediation Review
+
+Mediation is a second-stage tool. It becomes available only when trusted actors decide:
+
+- both sides can be contacted safely;
+- the issue is negotiable;
+- the meeting place is neutral;
+- elders or peace actors from affected communities accept the process;
+- there is no active attack, revenge mobilization, or survivor-safety risk.
+
+Jirani helps local actors write neutral questions, summarize concerns without blame, and define practical next steps such as temporary grazing routes, water schedules, apology processes, compensation review, market access, route safety, or follow-up meetings.
+
+## Step 4: Agreement & Follow-Up
+
+Agreements use anonymous labels such as Community A and Community B. Records should capture:
+
+- what each side agreed to do;
+- who will check compliance;
+- review date;
+- what happens if the agreement fails;
+- who may safely receive the record.
 
 ---
 
-## B. Community Agreement Records
+# 5. Core Features
+
+## A. Conflict, Threat, Domestic Violence, and GBV Reporting
+
+Jirani supports careful reporting for:
+
+- resource conflict;
+- livestock and grazing disputes;
+- rumors and incitement;
+- active violence or retaliation risk;
+- extremist or organized threats;
+- domestic violence;
+- GBV and survivor safety concerns.
+
+## B. Survivor-Centered Safety Handling
+
+Domestic violence and GBV reports follow stricter rules:
+
+- no community broadcast;
+- no mediation workflow;
+- no notification to family, elders, police, or alleged abuser without survivor consent, unless child protection or immediate life-threatening danger requires urgent action;
+- private handoff only to survivor-chosen support, trained GBV focal person, health provider, legal support provider, psychosocial support provider, or approved protection actor.
+
+## C. Trusted Nearby Sharing
+
+Jirani creates sanitized sync envelopes for reports and agreements. Shared payloads include only:
+
+- report type;
+- general area;
+- time window;
+- observed risk;
+- verification status;
+- sensitivity class.
+
+Names, phone numbers, exact GPS, exact homes, device identifiers, and reporter identity are excluded.
+
+Supported movement paths:
+
+- **Google Nearby Connections:** trusted verifier exchange when nearby devices are present.
+- **Wi-Fi Direct:** direct local transfer without internet.
+- **Android Sharesheet:** explicit user-driven handoff to a trusted app or contact.
+- **QR or encrypted file:** small sensitive payloads, especially survivor-centered handoff.
+- **Optional Rust gateway:** aggregated, minimized analytics only when a community opts in.
+
+## D. Community Agreement Records
 
 Communities can create and preserve:
 
-- peace agreements,
-- grazing schedules,
-- water-sharing arrangements,
-- local mediation outcomes,
-- community recovery plans,
-- and aid/resource coordination notes.
+- peace agreements;
+- grazing schedules;
+- water-sharing arrangements;
+- local mediation outcomes;
+- community recovery plans;
+- aid/resource coordination notes.
 
-Jirani also supports anonymous reporting of threats, such as rustling, robbery, or extremist activity, enabling communities to capture safety alerts without exposing reporters. These reports are designed for local verification by trusted community leaders or moderators before wider distribution.
+## E. Translation & Accessibility
 
-Records are stored locally and synchronized later when connectivity becomes available.
+Jirani reduces language barriers by supporting simple wording across English and Swahili first, with Somali and Kamba prioritized next.
 
----
+## F. Trusted Information & Rumor Reduction
 
-## C. Offline Community Sync
-
-Jirani uses device-to-device synchronization concepts such as BLE/Wi-Fi Direct Ghost-Sync to preserve and distribute important information during low-connectivity situations.
-
-The system supports:
-
-- local peer-to-peer gossip syncing,
-- delayed synchronization,
-- lightweight encrypted transfers,
-- local-first data storage,
-- and resilient information sharing between nearby devices.
-
-This enables continuity even during infrastructure instability.
+The app helps distinguish confirmed updates from unverified claims, encourages local verification before escalation, and prevents broad sharing of unverified or sensitive reports.
 
 ---
 
-## D. AI Translation & Accessibility
+# 6. Security & Privacy Principles
 
-Jirani reduces language barriers during mediation and coordination by:
-
-- translating simple community messages,
-- simplifying technical or legal wording,
-- supporting multilingual communication,
-- and helping users express concerns respectfully.
-
----
-
-## E. Trusted Information & Rumor Reduction
-
-Communities can share verified local updates while reducing misinformation and panic escalation.
-
-The AI assistant helps:
-
-- summarize reports,
-- identify uncertainty,
-- encourage verification before escalation,
-- and distinguish confirmed updates from unverified claims.
+- No mandatory phone numbers or government IDs.
+- No exact GPS for safety reports.
+- No public publishing of raw reports.
+- Local-first encrypted storage before production use.
+- Random non-PII record IDs and sync envelope IDs.
+- Minimal sync metadata, stored separately from report content.
+- Survivor-centered reports remain local unless explicitly handed to a safe support actor.
+- Optional gateway uploads use minimized or aggregated payloads only.
 
 ---
 
-# 5. Security & Privacy Principles
+# 7. Technical Architecture
 
-Jirani is designed around community safety.
+| Layer | Technology | Implementation Direction |
+|---|---|---|
+| **Android app** | Kotlin + Jetpack Compose | Native UI optimized for low-spec Android devices. |
+| **Local storage** | Room / SQLite, encrypted before production | Local-first records, reports, agreements, and sync metadata. |
+| **Domain logic** | Kotlin agents | Deterministic reporting, triage, mediation readiness, translation, and summary logic. |
+| **Sync model** | Sanitized sync envelopes | Sensitivity-based audience tiers and transport rules. |
+| **Nearby sharing** | Nearby Connections, Wi-Fi Direct, Android Sharesheet, QR/encrypted file | Trusted device-to-device movement without requiring internet. |
+| **Optional backend** | Rust API | Aggregation, deduplication, and gateway handoff for opt-in communities. |
+| **Future Rust modules** | Rust via JNI where needed | Cryptographic operations, packet verification, and performance-sensitive sync logic. |
 
-## Key Principles
-
-- No mandatory phone numbers or government IDs
-- No required central server for participation; peer-to-peer synchronization preserves local control
-- Local-first encrypted storage
-- Anonymous participation support, including anonymous safety and threat reporting
-- Minimal metadata collection
-- Optional recovery phrases for account restoration
-- Community-controlled sensitive information
-
-Sensitive information remains controlled by the community whenever possible.
+The current implementation keeps the core experience local and deterministic. Production versions can replace the in-memory store with Room and add Android-native transport adapters while preserving the same data model and privacy policy.
 
 ---
 
-# 6. Technical Architecture
+# 8. Data Movement Summary
 
-| Layer | Technology |
-|---|---|
-| **Android App** | Kotlin + Jetpack Compose |
-| **Local Storage** | SQLite / Room with encrypted local storage |
-| **Core Logic** | Kotlin, with Rust modules where strong cryptographic or synchronization guarantees are needed |
-| **AI Layer** | Hybrid AI: on-device mediation logic with optional cloud-assisted prompt orchestration for prototype/demo scenarios |
-| **Offline Sync** | Bluetooth Low Energy / Wi-Fi Direct peer sync and Ghost-Sync concepts for local peer synchronization |
-| **Backend** | Rust API for optional cloud synchronization, analytics, and aggregation |
-| **Web Demo** | Lightweight web version for global judging and testing |
+```text
+Device A
+  -> user creates report locally
+  -> app creates SafetyReportRecord
+  -> privacy filter creates SanitizedReportPayload
+  -> SyncEnvelope adds audience tier, hash, version, and allowed transports
+  -> trusted handoff path is selected
+  -> Device B verifies duplicate/hash status
+  -> trusted reviewer marks verification status
+  -> eligible records move onward only if sensitivity policy allows
+```
 
-An optional central Rust server supports aggregated analytics, anonymized community insights, and gateway-based synchronization for connected environments. The core mobile experience remains fully functional offline and peer-to-peer, with the Rust backend used only when users opt into cloud-assisted analysis or reporting.
+Sensitivity rules:
 
-## Device Sharing & Peer Sync Technologies
-
-Jirani supports local device-to-device sharing through platform-specific APIs and concepts:
-
-- **Android**: system sharing with `Intent.ACTION_SEND` for user-driven file/text exchange, plus local peer sync using `Nearby Connections`, `Wi-Fi Direct`, or `Bluetooth Low Energy` for offline data gossiping.
-- **iOS**: similar peer-sharing capabilities via `MultipeerConnectivity` for local peer discovery and data transfer, with `UIActivityViewController` supporting system-level sharing.
-
-This cross-platform approach preserves offline-first resilience while allowing optional user-driven sharing for lightweight data exchange.
-
-The detailed information flow from device-to-device sync queues to the optional OSF-hosted Rust analytics gateway is documented in `docs/INFORMATION_FLOW.md`, including behavior when BLE, Nearby Share, or Wi-Fi Direct are enabled or disabled.
-
-## Why Kotlin + Jetpack Compose
-
-Jirani prioritizes performance and usability on low-spec Android devices. Kotlin with Jetpack Compose provides a native Android experience with better performance, smaller runtime overhead, and deeper access to device capabilities compared to heavier cross-platform frameworks.
-
-This is important because the target users may have:
-
-- budget Android devices,
-- limited storage,
-- low battery capacity,
-- unreliable connectivity,
-- and older hardware.
+| Sensitivity | Example | Movement |
+|---|---|---|
+| **Community** | grazing dispute, water access, verified rumor | Can move to trusted verifiers through nearby sharing. |
+| **Protection** | attack, armed group, retaliation risk | Moves only to trusted protection actors. |
+| **Survivor-centered** | domestic violence, GBV, sexual violence | Held locally by default; private survivor-support handoff only. |
 
 ---
 
-# 7. Codex Integration Strategy
+# 9. Codex Integration Strategy
 
-Codex is embedded as a first-class workflow partner across planning, development, review, and documentation rather than being bolted on after implementation. This project also leverages repository-level Codex tooling and agent-driven workflow artifacts such as `AGENTS.md`, prompts, and structured planning notes to make the integration visible and repeatable.
-
-Codex is integrated throughout the project lifecycle:
+Codex is embedded as a first-class workflow partner across planning, development, review, testing, and documentation.
 
 | Area | Codex Usage |
 |---|---|
-| **Planning** | Structuring mediation flows and system architecture |
-| **Development** | Generating API routes, Jetpack Compose UI scaffolding, and local storage logic |
-| **AI Prompt Design** | Refining mediation, translation, and de-escalation prompts |
-| **Documentation** | Generating technical documentation and onboarding guides |
-| **Testing** | Assisting with scenario generation, edge-case simulation, and safety checks |
-| **Review** | Supporting code review criteria, privacy checks, and design alignment |
+| **Planning** | Reshaping mediation into a report-first, real-world conflict workflow. |
+| **Development** | Generating Kotlin domain models, Compose UI updates, and sync-envelope logic. |
+| **Prompt design** | Refining reporting, mediation, translation, and summary prompts. |
+| **Documentation** | Maintaining capstone specs, data flow docs, security notes, and user guides. |
+| **Testing** | Generating unit tests for privacy-sensitive reporting and sync behavior. |
+| **Review** | Checking clarity, maintainability, privacy, and PeaceTech fit. |
 
 ---
 
-# 8. Human Impact Scenarios
+# 10. Human Impact Scenarios
 
-## Scenario 1 — Water Resource Conflict
+## Scenario 1: Kamba-Somali Resource Conflict
 
-Two neighboring pastoralist communities dispute access to a shared water source.
+A report says camels crossed into farms, rumors of revenge are spreading, and people are gathering near a market road.
 
 Jirani helps:
 
-- document agreements offline,
-- guide mediation discussions,
-- record agreed sharing schedules,
-- and synchronize records later when connectivity is restored.
+- capture the report without names;
+- mark rumors as unverified;
+- route active danger to protection first;
+- allow elders and peace actors to open mediation only when both sides can meet safely;
+- record a temporary grazing, compensation, or review agreement.
+
+## Scenario 2: Domestic Violence or GBV Report
+
+A survivor or trusted helper records that someone needs private help after domestic violence or GBV.
+
+Jirani helps:
+
+- keep the record local by default;
+- avoid names, exact homes, photos, phone numbers, and community broadcast;
+- block mediation;
+- show survivor-support-only next steps;
+- allow private handoff only to a survivor-chosen support actor or trained protection focal person.
+
+## Scenario 3: Displacement Coordination
+
+A displaced family receives trusted offline information about safe routes, nearby aid points, available community support, and local contacts.
 
 ---
 
-## Scenario 2 — Displacement Coordination
+# 11. MVP Scope
 
-A displaced family receives trusted offline information about:
+For the capstone demo, Jirani focuses on a realistic and testable MVP:
 
-- safe routes,
-- nearby aid points,
-- available community support,
-- and trusted local contacts.
+1. **Report-first flow:** conflict, threat, domestic violence, and GBV reports with approximate area, time window, and no PII.
+2. **Local triage:** protection first, verify first, elder review, or survivor-support only.
+3. **Mediation review:** guidance for elders and peace actors only after safety review.
+4. **Sanitized sync envelopes:** sensitivity-based audience tiers and allowed movement paths.
+5. **Agreement generator:** neutral agreement drafts without PII.
+6. **Offline records:** local storage direction and simulated queue status before full Room implementation.
+7. **Multilingual UI direction:** English and Swahili first, with Somali and Kamba as priority expansion languages.
 
----
+Out of scope for MVP:
 
-## Scenario 3 — Community Tension De-escalation
-
-A local disagreement risks escalating into violence.
-
-Jirani:
-
-- suggests calm communication approaches,
-- generates neutral language,
-- proposes mediation steps,
-- and encourages safe escalation to trusted local leaders when needed.
-
----
-
-# 9. MVP Scope
-
-For the capstone demo, Jirani will focus on a realistic and testable MVP:
-
-## MVP Features
-
-1. **AI Mediation Assistant**
-   - Users describe a conflict.
-   - The assistant suggests peaceful next steps and respectful communication.
-
-2. **Agreement Generator**
-   - Creates neutral agreement drafts using labels like Party A and Party B.
-   - Preserves anonymity by avoiding mandatory names or phone numbers.
-
-3. **Offline Agreement Records**
-   - Saves agreements locally on the device.
-   - Demonstrates delayed sync using simulated or local peer-sync behavior.
-
-4. **Multilingual Support**
-   - English and Swahili for the MVP.
-   - Designed for future Somali, Arabic, French, Portuguese, and local-language expansion.
-
-5. **Optional Analytics Backend**
-   - A Rust-based analytics and aggregation server is contemplated as a later-stage extension for optional reporting and insight, not a required part of the core MVP.
+- mandatory account registration;
+- central-server-only workflows;
+- production-grade BLE/Wi-Fi Direct/Nearby implementation;
+- production-grade on-device LLM inference;
+- direct user-started mediation during active violence;
+- community broadcast of domestic violence or GBV reports.
 
 ---
 
-# 10. Assumptions
-
-- Users have access to Android smartphones with Bluetooth capability.
-- Community leaders are willing to adopt lightweight digital coordination tools.
-- Physical movement between users enables delayed synchronization opportunities.
-- AI-generated mediation guidance is advisory and community-driven, not authoritative.
-- Sensitive agreements may be formalized offline with trusted elders, mediators, chiefs, or community leaders.
-- Anonymous safety reports should be verified through trusted local channels to avoid false alarms or misuse.
-
----
-
-# 11. Trade-offs
+# 12. Trade-Offs
 
 | Trade-off | Decision |
 |---|---|
-| **Latency vs Resilience** | Delayed synchronization is acceptable in exchange for functionality during outages. |
-| **Battery vs Connectivity** | Synchronization intervals are optimized to reduce battery drain. |
-| **Security vs Simplicity** | Recovery phrases improve anonymity but require careful user education. |
-| **Offline-first vs Real-time Cloud Features** | Local resilience is prioritized over continuous connectivity. |
-| **On-device AI vs cloud assistance** | On-device mediation logic is preferred for privacy and offline use, with optional cloud-based prompt orchestration as a prototype fallback. |
-| **Native Android vs Cross-platform** | Kotlin + Jetpack Compose is preferred for performance, smaller overhead, and better access to Android device capabilities. |
+| **Speed vs safety** | Protection and verification come before mediation. |
+| **Reach vs privacy** | Sensitive reports move less broadly, especially survivor-centered records. |
+| **Latency vs resilience** | Delayed sync is acceptable in exchange for offline operation. |
+| **Battery vs connectivity** | Nearby discovery should be duty-cycled in production. |
+| **Native vs cross-platform** | Kotlin + Jetpack Compose is preferred for Android performance and access to local sharing APIs. |
+| **Local-first vs analytics** | Local participation works without the optional Rust gateway. |
 
 ---
 
-# 12. Long-Term Vision
+# 13. Long-Term Vision
 
-Jirani aims to evolve into a scalable PeaceTech platform adaptable across regions experiencing:
+Jirani can evolve into a scalable PeaceTech platform adaptable across regions experiencing:
 
-- displacement,
-- resource conflict,
-- weak connectivity,
-- community tension,
-- humanitarian recovery needs,
-- or institutional instability.
-
-An optional Rust-based backend may be added later to provide centralized analytics, anonymized trend aggregation, and optional cloud sync gateways for communities that want additional insight or cross-region reporting. This backend is explicitly optional and does not replace the core decentralized, offline-first functionality.
+- displacement;
+- resource conflict;
+- weak connectivity;
+- community tension;
+- domestic violence and GBV reporting needs;
+- humanitarian recovery needs;
+- institutional instability.
 
 Future directions include:
 
-- NGO and humanitarian integrations,
-- trusted community moderator tools,
-- multilingual expansion,
-- stronger offline synchronization capabilities,
-- optional WhatsApp integration,
-- and context-specific mediation modules for different regions.
+- Room-backed encrypted storage;
+- Android Nearby Connections transport adapter;
+- Wi-Fi Direct handoff;
+- encrypted QR/file export;
+- trusted reviewer workflows;
+- local-language expansion;
+- optional Rust gateway for minimized analytics;
+- context-specific modules for different communities.
 
 ---
 
-# 13. Closing Statement
+# 14. Closing Statement
 
 Jirani is designed around a simple belief:
 
-> Peace is not only built through institutions — it is built daily between neighbors.
+> Peace is not only built through institutions. It is built daily between neighbors.
 
-By combining offline-first resilience, AI-assisted mediation, multilingual accessibility, native Android performance, and community-centered design, Jirani provides practical tools for communication, trust-building, and peaceful coordination in challenging environments.
+By combining report-first safety, local verification, survivor-centered privacy, elder-led mediation, trusted nearby sharing, and multilingual accessibility, Jirani provides practical tools for communication, protection, trust-building, and peaceful coordination in challenging environments.

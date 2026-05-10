@@ -14,7 +14,7 @@ class MediationAgentTest {
         )
 
         assertTrue(guidance.concerns.contains("shared water access"))
-        assertTrue(guidance.recommendations.any { it.contains("temporary access schedule") })
+        assertTrue(guidance.recommendations.any { it.contains("elders from both sides") })
     }
 
     @Test
@@ -32,6 +32,7 @@ class MediationAgentTest {
         )
 
         assertTrue(guidance.concerns.contains("safety risk"))
-        assertTrue(guidance.safetyNote?.contains("Prioritize immediate safety") == true)
+        assertTrue(guidance.safetyNote?.contains("Mediation is not ready") == true)
+        assertTrue(guidance.nextStep.contains("safety report"))
     }
 }

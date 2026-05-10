@@ -35,6 +35,7 @@ data class NetworkSnapshot(
     val nearbyNeighbors: Int = 0,
     val queueSize: Int = 0,
     val queueItems: List<SyncQueueItem> = emptyList(),
+    val pendingEnvelopes: List<SyncEnvelope> = emptyList(),
 )
 
 data class SecuritySettings(
@@ -107,6 +108,32 @@ object LocalFirstUiStore {
         }
     }
 
+    fun saveSafetyReport(
+        reportType: String,
+        generalLocation: String,
+        details: String,
+    ): SyncEnvelope {
+        val record = ReportingSyncPolicy.createRecord(
+            reportType = reportType,
+            generalLocation = generalLocation,
+            details = details,
+        )
+        val envelope = ReportingSyncPolicy.createEnvelope(record)
+        _network.update {
+            val nextItem = SyncQueueItem(
+                id = envelope.envelopeId,
+                title = "${record.reportType} report",
+                status = envelope.queueStatusLabel(),
+            )
+            it.copy(
+                queueSize = it.queueSize + 1,
+                queueItems = listOf(nextItem) + it.queueItems,
+                pendingEnvelopes = listOf(envelope) + it.pendingEnvelopes,
+            )
+        }
+        return envelope
+    }
+
     fun togglePeerSimulation() {
         _network.update {
             val nextDetected = !it.peerDetected
@@ -119,5 +146,12 @@ object LocalFirstUiStore {
 
     fun updateDiscreetCode(code: String) {
         _securitySettings.update { it.copy(discreetCode = code) }
+    }
+
+    private fun SyncEnvelope.queueStatusLabel(): String = when (audienceTier) {
+        SyncAudienceTier.SurvivorSupportOnly -> "Held locally; survivor-support sharing only"
+        SyncAudienceTier.ProtectionActors -> "Waiting for trusted protection contact"
+        SyncAudienceTier.TrustedVerifier -> "Ready for nearby trusted verifier"
+        SyncAudienceTier.CommunityAlert -> "Ready for community alert sharing"
     }
 }

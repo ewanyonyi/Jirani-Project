@@ -1,6 +1,6 @@
 [project]
 name = "Jirani"
-description = "Offline-first PeaceTech Android app for community mediation, anonymous reporting, and resilient local sync."
+description = "Offline-first PeaceTech Android app for conflict reporting, local verification, elder-led mediation, and resilient coordination."
 language = "Kotlin"
 platforms = ["Android"]
 uiFramework = "Jetpack Compose"

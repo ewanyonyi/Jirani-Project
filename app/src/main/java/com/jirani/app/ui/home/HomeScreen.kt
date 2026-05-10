@@ -60,12 +60,12 @@ private fun AppHeader() {
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Offline peace coordination",
+            text = "Report first. Mediate later.",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Guide mediation, preserve agreements, and verify local safety updates without requiring personal identity.",
+            text = "Capture threats and conflict reports, verify them through trusted local actors, then support mediation when people can meet safely.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -89,7 +89,7 @@ private fun StatusBand() {
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = "Guidance runs on device. Records are prepared for encrypted local storage and delayed peer sync.",
+            text = "Reports stay on this phone until a trusted local review decides what can be shared.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
@@ -103,16 +103,16 @@ private fun PrimaryActions(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Button(
-            onClick = onOpenMediation,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Start Mediation")
-        }
-        OutlinedButton(
             onClick = onOpenReporting,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Create Anonymous Report")
+            Text("Create Conflict Report")
+        }
+        OutlinedButton(
+            onClick = onOpenMediation,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Open Mediation Review")
         }
     }
 }

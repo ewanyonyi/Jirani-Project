@@ -64,7 +64,7 @@ fun SyncScreen(
             )
             QuickExitButton(onClick = onQuickExit)
         }
-        GhostSyncRadar(
+        NearbyShareStatus(
             peerDetected = network.peerDetected,
             onScan = viewModel::togglePeerSimulation,
         )
@@ -84,7 +84,7 @@ fun SyncScreen(
 }
 
 @Composable
-private fun GhostSyncRadar(
+private fun NearbyShareStatus(
     peerDetected: Boolean,
     onScan: () -> Unit,
 ) {

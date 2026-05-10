@@ -1,7 +1,7 @@
 # Jirani Design System & UI Specification
 
 ## 1. Visual Identity: "Grounded Resilience"
-Designed for high-stakes PeaceTech utility in the Somali-Kamba border context and globally. Optimized for high-sunlight visibility and low-end Android hardware.
+Designed for high-stakes PeaceTech utility in the Somali-Kamba border context and other local conflicts where reporting must come before mediation. Optimized for high-sunlight visibility and low-end Android hardware.
 
 ### Color Palette (Material 3 Implementation)
 - **Primary:** `#2E7D32` (Forest Green) - Peace and stability.
@@ -21,23 +21,28 @@ Designed for high-stakes PeaceTech utility in the Somali-Kamba border context an
 ## 2. Core UI Architecture (Jetpack Compose)
 
 ### Navigation (BottomBar)
-1. **Mediation (Home):** AI chat interface for de-escalation.
-2. **Vault (Agreements):** Local library of signed records.
-3. **Safety (Alerts):** Anonymous threat reporting map/list.
+1. **Report:** Conflict and threat report form for careful local review.
+2. **Mediation:** Second-stage guidance after elders, peace committees, chiefs, religious leaders, or OSF/community partners decide a meeting is safe.
+3. **Vault (Agreements):** Local library of signed records.
 4. **Network (Sync):** Mesh status and P2P radar.
 
 ### Key Components
 - **MediationCard:** Bubble-style UI with "Neutralizer" suggestions.
 - **AgreementItem:** Elevated card with status icons (Verified, Pending Sync).
-- **GhostSyncRadar:** Pulse animation showing nearby BLE/Wi-Fi Direct peers.
+- **NearbyShareStatus:** Simple indicator showing whether trusted nearby device sharing is available.
 - **PanicTrigger:** Floating Action Button (FAB) or gesture for immediate app disguise.
 
 ## 3. Screen Specifications
 
+### Report Screen
+- **Input:** Report type, approximate area, and what happened.
+- **Triage:** Protection first, verify first, or elder review.
+- **Action Choices:** Violence, rumor, livestock, resource, and other.
+
 ### Mediation Screen
-- **Input:** Multi-line text field with real-time AI "Tone Check."
-- **AI Feedback:** A "Safe Version" suggestion box appearing above the keyboard.
-- **Action Chips:** "Water Rights", "Border Crossing", "Grazing Access" for rapid input.
+- **Input:** Multi-line text field for reviewed cases.
+- **Readiness Check:** Warns when a case belongs back in safety reporting.
+- **Action Chips:** Water, grazing, boundary, livestock, rumor, and review.
 
 ### Vault Screen
 - **Search:** Local-only search bar.
