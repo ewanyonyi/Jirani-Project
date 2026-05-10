@@ -35,6 +35,8 @@ data class NearbyScanSnapshot(
 class NearbyConnectionsScanner(
     context: Context,
     private val onReportPacketReceived: (WireReportPacket, String) -> Unit = { _, _ -> },
+    private val onReportPacketsSent: (List<WireReportPacket>) -> Unit = {},
+    private val hasWaitingReports: () -> Boolean = { false },
 ) {
     private val appContext = context.applicationContext
     private val client = Nearby.getConnectionsClient(appContext)
@@ -57,7 +59,7 @@ class NearbyConnectionsScanner(
                 trusted = true,
                 supportedTransports = listOf(SyncTransport.NearbyConnections),
             )
-            if (shouldInitiateConnection(info.endpointName)) {
+            if (hasWaitingReports() || hasInitiatorPriority(info.endpointName)) {
                 publishDevices("Found ${discovered.size} nearby Jirani device(s). Connecting.")
                 requestConnection(endpointId)
             } else {
@@ -128,6 +130,14 @@ class NearbyConnectionsScanner(
 
     fun start() {
         startAdvertising()
+        startDiscovery()
+    }
+
+    fun makeAvailable() {
+        startAdvertising()
+    }
+
+    fun resumeDiscovery() {
         startDiscovery()
     }
 
@@ -225,6 +235,7 @@ class NearbyConnectionsScanner(
             Log.d(Tag, "Sending payload to endpoint=$endpointId bytes=${bytes.size}")
             client.sendPayload(endpointId, Payload.fromBytes(bytes))
                 .addOnSuccessListener {
+                    onReportPacketsSent(listOf(packet))
                     _scan.update { scan -> scan.copy(statusMessage = "Sent anonymized report packet to nearby device.") }
                 }
                 .addOnFailureListener { error ->
@@ -251,7 +262,7 @@ class NearbyConnectionsScanner(
             }
     }
 
-    private fun shouldInitiateConnection(remoteAlias: String): Boolean =
+    private fun hasInitiatorPriority(remoteAlias: String): Boolean =
         localAlias < remoteAlias.ifBlank { "Nearby Jirani device" }
 
     private fun statusLabel(statusCode: Int): String = when (statusCode) {

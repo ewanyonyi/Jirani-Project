@@ -191,6 +191,19 @@ object ReportingDeviceTransfer {
         envelope: SyncEnvelope,
         target: NearbyJiraniDevice,
     ): TransferResult {
+        val prepared = createPacketForDevice(envelope, target)
+        val packet = prepared.packet ?: return prepared
+
+        return receivePacket(
+            packet = packet,
+            fromAlias = "This device",
+        )
+    }
+
+    fun createPacketForDevice(
+        envelope: SyncEnvelope,
+        target: NearbyJiraniDevice,
+    ): TransferResult {
         if (!target.trusted) {
             return TransferResult(
                 delivered = false,
@@ -222,9 +235,10 @@ object ReportingDeviceTransfer {
             sealedPayload = sealedPayload,
         )
 
-        return receivePacket(
+        return TransferResult(
+            delivered = false,
+            message = "Anonymized report packet is ready for ${target.deviceAlias}.",
             packet = packet,
-            fromAlias = "This device",
         )
     }
 

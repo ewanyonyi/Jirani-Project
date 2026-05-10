@@ -17,10 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +42,7 @@ import com.jirani.app.sync.NearbyConnectionsScanner
 import com.jirani.app.ui.common.QuickExitButton
 import com.jirani.app.ui.reporting.ScreenTitle
 import com.jirani.app.ui.theme.JiraniTheme
+import kotlinx.coroutines.delay
 
 @Composable
 fun SyncScreen(
@@ -57,6 +56,8 @@ fun SyncScreen(
         NearbyConnectionsScanner(
             context = context,
             onReportPacketReceived = viewModel::receiveNearbyReportPacket,
+            onReportPacketsSent = viewModel::markReportPacketsSent,
+            hasWaitingReports = viewModel::hasWaitingReports,
         )
     }
     val scan by scanner.scan.collectAsStateWithLifecycle()
@@ -80,14 +81,36 @@ fun SyncScreen(
         viewModel.updateNearbyScan(scan)
     }
 
-    LaunchedEffect(network.pendingEnvelopes.size, scan.scanning, scan.advertising) {
-        if (scan.scanning || scan.advertising) return@LaunchedEffect
-
+    LaunchedEffect(network.pendingEnvelopes.size, scan.connectedDevices.size, scan.scanning, scan.advertising) {
         val missingPermissions = context.missingNearbyPermissions()
-        if (missingPermissions.isEmpty()) {
-            scanner.start()
-        } else if (network.pendingEnvelopes.isNotEmpty()) {
-            permissionLauncher.launch(missingPermissions.toTypedArray())
+        if (missingPermissions.isNotEmpty()) {
+            if (network.pendingEnvelopes.isNotEmpty()) {
+                permissionLauncher.launch(missingPermissions.toTypedArray())
+            }
+            return@LaunchedEffect
+        }
+
+        if (!scan.advertising) {
+            scanner.makeAvailable()
+        }
+
+        when {
+            network.pendingEnvelopes.isEmpty() && scan.scanning -> scanner.pauseDiscovery()
+            network.pendingEnvelopes.isNotEmpty() && scan.connectedDevices.isEmpty() && !scan.scanning -> scanner.resumeDiscovery()
+        }
+    }
+
+    LaunchedEffect(network.pendingEnvelopes.size, scan.connectedDevices.size, scan.scanning) {
+        if (network.pendingEnvelopes.isNotEmpty() && scan.connectedDevices.isEmpty() && scan.scanning) {
+            delay(DiscoveryBurstMillis)
+            scanner.pauseDiscovery()
+        }
+    }
+
+    LaunchedEffect(network.pendingEnvelopes.size, scan.connectedDevices.size, scan.scanning, scan.advertising) {
+        if (network.pendingEnvelopes.isNotEmpty() && scan.connectedDevices.isEmpty() && !scan.scanning && scan.advertising) {
+            delay(DiscoveryRestMillis)
+            scanner.resumeDiscovery()
         }
     }
 
@@ -122,28 +145,12 @@ fun SyncScreen(
             QuickExitButton(onClick = onQuickExit)
         }
         NearbySyncPanel(
-            peerDetected = network.peerDetected,
+            peerDetected = scan.connectedDevices.isNotEmpty(),
             nearbyDevices = scan.devices.size,
             connectedDevices = scan.connectedDevices.size,
             waitingCount = network.pendingEnvelopes.size,
             scanning = scan.scanning,
             statusMessage = scan.statusMessage,
-            onScan = {
-                if (scan.scanning) {
-                    scanner.pauseDiscovery()
-                    return@NearbySyncPanel
-                }
-
-                val missingPermissions = context.missingNearbyPermissions()
-                if (missingPermissions.isEmpty()) {
-                    scanner.start()
-                } else {
-                    permissionLauncher.launch(missingPermissions.toTypedArray())
-                }
-            },
-            onSendNext = {
-                scanner.sendReportPackets(viewModel.shareNextReportPackets())
-            },
         )
         network.lastTransferMessage?.let {
             SyncStatusCard(
@@ -165,8 +172,6 @@ private fun NearbySyncPanel(
     waitingCount: Int,
     scanning: Boolean,
     statusMessage: String,
-    onScan: () -> Unit,
-    onSendNext: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -207,28 +212,6 @@ private fun NearbySyncPanel(
                     )
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onScan,
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp),
-                ) {
-                    Text(if (scanning) "Pause scan" else "Find devices")
-                }
-                Button(
-                    onClick = onSendNext,
-                    enabled = connectedDevices > 0 && waitingCount > 0,
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp),
-                ) {
-                    Text("Send next")
-                }
-            }
         }
     }
 }
@@ -254,6 +237,9 @@ private fun android.content.Context.missingNearbyPermissions(): List<String> {
         ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
     }
 }
+
+private const val DiscoveryBurstMillis = 45_000L
+private const val DiscoveryRestMillis = 30_000L
 
 @Composable
 private fun SubmittedReportList(items: List<SubmittedReportStatus>) {

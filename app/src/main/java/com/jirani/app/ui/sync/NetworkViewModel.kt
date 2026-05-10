@@ -22,6 +22,13 @@ class NetworkViewModel : ViewModel() {
     fun shareNextReportPackets(): List<WireReportPacket> =
         LocalFirstUiStore.createNearbyReportPacketsForNextReport()
 
+    fun markReportPacketsSent(packets: List<WireReportPacket>) {
+        LocalFirstUiStore.markNearbyReportPacketsSent(packets)
+    }
+
+    fun hasWaitingReports(): Boolean =
+        LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty()
+
     fun receiveNearbyReportPacket(
         packet: WireReportPacket,
         fromAlias: String,

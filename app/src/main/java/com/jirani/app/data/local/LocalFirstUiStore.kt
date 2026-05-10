@@ -244,10 +244,62 @@ object LocalFirstUiStore {
         val current = _network.value
         val envelope = current.pendingEnvelopes.firstOrNull()
             ?: return emptyList()
-        return shareReportToNearbyDevices(
-            envelopeId = envelope.envelopeId,
-            recordReceivedReports = false,
-        ).results.mapNotNull { it.packet }
+        val remainingSlots = envelope.maxUniqueDevices - envelope.deliveredDeviceAliases.size
+        if (remainingSlots <= 0 || envelope.isStale()) return emptyList()
+
+        return current.trustedNearbyDevices
+            .filter { it.deviceAlias !in envelope.deliveredDeviceAliases }
+            .take(remainingSlots)
+            .map { target -> ReportingDeviceTransfer.createPacketForDevice(envelope, target) }
+            .mapNotNull { it.packet }
+    }
+
+    fun markNearbyReportPacketsSent(packets: List<WireReportPacket>) {
+        if (packets.isEmpty()) return
+
+        _network.update { current ->
+            val packetsByEnvelope = packets.groupBy { it.sourceEnvelopeId }
+            val updatedEnvelopes = current.pendingEnvelopes.map { envelope ->
+                val deliveredAliases = packetsByEnvelope[envelope.envelopeId]
+                    ?.map { packet -> packet.targetAlias }
+                    ?.filterNot { alias -> alias in envelope.deliveredDeviceAliases }
+                    ?: emptyList()
+                if (deliveredAliases.isEmpty()) {
+                    envelope
+                } else {
+                    envelope.copy(deliveredDeviceAliases = envelope.deliveredDeviceAliases + deliveredAliases)
+                }
+            }
+            val remainingPending = updatedEnvelopes.filterNot { envelope ->
+                envelope.deliveredDeviceAliases.size >= envelope.maxUniqueDevices || envelope.isStale()
+            }
+            val updatedSubmittedReports = current.submittedReports.map { report ->
+                val envelope = updatedEnvelopes.firstOrNull { it.envelopeId == report.envelopeId }
+                if (envelope == null || report.envelopeId !in packetsByEnvelope) {
+                    report
+                } else {
+                    envelope.toSubmittedStatus(
+                        "Report sent anonymously to ${envelope.deliveredDeviceAliases.size}/${envelope.maxUniqueDevices} unique devices.",
+                    )
+                }
+            }
+            current.copy(
+                pendingEnvelopes = remainingPending,
+                queueSize = remainingPending.size,
+                queueItems = current.queueItems.map { item ->
+                    val envelope = updatedEnvelopes.firstOrNull { it.envelopeId == item.id }
+                    if (envelope == null || item.id !in packetsByEnvelope) {
+                        item
+                    } else {
+                        item.copy(
+                            status = "Report sent anonymously to ${envelope.deliveredDeviceAliases.size}/${envelope.maxUniqueDevices} unique devices.",
+                        )
+                    }
+                },
+                submittedReports = updatedSubmittedReports,
+                lastTransferMessage = "Report sent anonymously to ${packets.size} nearby device(s).",
+            )
+        }
     }
 
     private fun shareReportToNearbyDevices(
