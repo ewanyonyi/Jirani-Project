@@ -46,6 +46,7 @@ data class SubmittedReportStatus(
     val maxDevices: Int,
     val stale: Boolean,
     val status: String,
+    val remoteGatewayStatus: String = "Waiting for Rust gateway",
 )
 
 data class NetworkSnapshot(
@@ -54,6 +55,7 @@ data class NetworkSnapshot(
     val queueSize: Int = 0,
     val queueItems: List<SyncQueueItem> = emptyList(),
     val pendingEnvelopes: List<SyncEnvelope> = emptyList(),
+    val remoteGatewayEnvelopes: List<SyncEnvelope> = emptyList(),
     val trustedNearbyDevices: List<NearbyJiraniDevice> = emptyList(),
     val receivedReports: List<ReceivedReportItem> = emptyList(),
     val submittedReports: List<SubmittedReportStatus> = emptyList(),
@@ -193,6 +195,11 @@ object LocalFirstUiStore {
             details = details,
         )
         val envelope = ReportingSyncPolicy.createEnvelope(record)
+        val remoteGatewayEnvelopes = if (RemoteGatewaySyncPolicy.canUploadToRemoteGateway(envelope)) {
+            listOf(envelope)
+        } else {
+            emptyList()
+        }
         _network.update {
             val nextItem = SyncQueueItem(
                 id = envelope.envelopeId,
@@ -203,6 +210,7 @@ object LocalFirstUiStore {
                 queueSize = it.queueSize + 1,
                 queueItems = listOf(nextItem) + it.queueItems,
                 pendingEnvelopes = listOf(envelope) + it.pendingEnvelopes,
+                remoteGatewayEnvelopes = remoteGatewayEnvelopes + it.remoteGatewayEnvelopes,
                 submittedReports = listOf(envelope.toSubmittedStatus(nextItem.status)) + it.submittedReports,
             )
         }
@@ -264,6 +272,43 @@ object LocalFirstUiStore {
         }
     }
 
+    fun pendingRemoteGatewayEnvelopes(): List<SyncEnvelope> =
+        _network.value.remoteGatewayEnvelopes
+            .filter { RemoteGatewaySyncPolicy.canUploadToRemoteGateway(it) }
+
+    @Synchronized
+    fun markRemoteGatewayUploadSucceeded(envelopeId: String) {
+        _network.update { current ->
+            current.copy(
+                remoteGatewayEnvelopes = current.remoteGatewayEnvelopes.filterNot { it.envelopeId == envelopeId },
+                submittedReports = current.submittedReports.map { report ->
+                    if (report.envelopeId == envelopeId) {
+                        report.copy(remoteGatewayStatus = "Uploaded to Rust gateway")
+                    } else {
+                        report
+                    }
+                },
+                lastTransferMessage = "An anonymized report was uploaded to the Rust gateway.",
+            )
+        }
+    }
+
+    @Synchronized
+    fun markRemoteGatewayUploadFailed(envelopeId: String, message: String) {
+        _network.update { current ->
+            current.copy(
+                submittedReports = current.submittedReports.map { report ->
+                    if (report.envelopeId == envelopeId) {
+                        report.copy(remoteGatewayStatus = "Rust gateway pending")
+                    } else {
+                        report
+                    }
+                },
+                lastTransferMessage = message,
+            )
+        }
+    }
+
     fun receiveNearbyReportPacket(
         packet: WireReportPacket,
         fromAlias: String,
@@ -280,6 +325,24 @@ object LocalFirstUiStore {
             }
         }
         return result
+    }
+
+    @Synchronized
+    fun receiveRemoteGatewayReports(items: List<ReceivedReportItem>) {
+        if (items.isEmpty()) return
+
+        _network.update { current ->
+            val knownPacketIds = current.receivedReports.map { it.packetId }.toSet()
+            val newItems = items.filterNot { it.packetId in knownPacketIds }
+            if (newItems.isEmpty()) {
+                current
+            } else {
+                current.copy(
+                    receivedReports = newItems + current.receivedReports,
+                    lastTransferMessage = "Downloaded ${newItems.size} anonymized report(s) from the Rust gateway.",
+                )
+            }
+        }
     }
 
     fun shareNextReportToNearbyDevice(): TransferResult {
@@ -361,6 +424,7 @@ object LocalFirstUiStore {
                 } else {
                     envelope.toSubmittedStatus(
                         "Report sent anonymously to ${envelope.deliveredDeviceAliases.size}/${envelope.maxUniqueDevices} unique devices.",
+                        report.remoteGatewayStatus,
                     )
                 }
             }
@@ -440,7 +504,7 @@ object LocalFirstUiStore {
                     },
                     submittedReports = it.submittedReports.map { report ->
                         if (report.envelopeId == envelope.envelopeId) {
-                            result.updatedEnvelope.toSubmittedStatus(result.message)
+                            result.updatedEnvelope.toSubmittedStatus(result.message, report.remoteGatewayStatus)
                         } else {
                             report
                         }
@@ -480,7 +544,10 @@ object LocalFirstUiStore {
         SyncAudienceTier.CommunityAlert -> "Ready for community alert sharing"
     }
 
-    private fun SyncEnvelope.toSubmittedStatus(status: String): SubmittedReportStatus =
+    private fun SyncEnvelope.toSubmittedStatus(
+        status: String,
+        remoteGatewayStatus: String = RemoteGatewaySyncPolicy.uploadStatusLabel(this),
+    ): SubmittedReportStatus =
         SubmittedReportStatus(
             envelopeId = envelopeId,
             title = "${payload.reportType} report",
@@ -488,6 +555,7 @@ object LocalFirstUiStore {
             maxDevices = maxUniqueDevices,
             stale = isStale(),
             status = status,
+            remoteGatewayStatus = remoteGatewayStatus,
         )
 
     private fun trustedDemoDevices(): List<NearbyJiraniDevice> =
@@ -542,6 +610,7 @@ object LocalFirstUiStore {
         JSONObject()
             .put("queueItems", JSONArray(snapshot.queueItems.map { it.toJson() }))
             .put("pendingEnvelopes", JSONArray(snapshot.pendingEnvelopes.map { it.copy(sendingDeviceAliases = emptyList()).toJson() }))
+            .put("remoteGatewayEnvelopes", JSONArray(snapshot.remoteGatewayEnvelopes.map { it.copy(sendingDeviceAliases = emptyList()).toJson() }))
             .put("receivedReports", JSONArray(snapshot.receivedReports.map { it.toJson() }))
             .put("submittedReports", JSONArray(snapshot.submittedReports.map { it.toJson() }))
             .put("lastTransferMessage", snapshot.lastTransferMessage)
@@ -568,11 +637,13 @@ object LocalFirstUiStore {
     private fun decodeNetworkSnapshot(encoded: String): NetworkSnapshot {
         val json = JSONObject(encoded)
         val pendingEnvelopes = json.optJSONArray("pendingEnvelopes").toList { it.toSyncEnvelope() }
+        val remoteGatewayEnvelopes = json.optJSONArray("remoteGatewayEnvelopes").toList { it.toSyncEnvelope() }
         val queueItems = json.optJSONArray("queueItems").toList { it.toSyncQueueItem() }
         return NetworkSnapshot(
             queueSize = pendingEnvelopes.size,
             queueItems = queueItems,
             pendingEnvelopes = pendingEnvelopes,
+            remoteGatewayEnvelopes = remoteGatewayEnvelopes,
             receivedReports = json.optJSONArray("receivedReports").toList { it.toReceivedReportItem() },
             submittedReports = json.optJSONArray("submittedReports").toList { it.toSubmittedReportStatus() },
             lastTransferMessage = json.optString("lastTransferMessage").ifBlank { null },
@@ -600,6 +671,7 @@ object LocalFirstUiStore {
             .put("maxDevices", maxDevices)
             .put("stale", stale)
             .put("status", status)
+            .put("remoteGatewayStatus", remoteGatewayStatus)
 
     private fun JSONObject.toSubmittedReportStatus(): SubmittedReportStatus =
         SubmittedReportStatus(
@@ -609,6 +681,7 @@ object LocalFirstUiStore {
             maxDevices = optInt("maxDevices", 5),
             stale = optBoolean("stale"),
             status = optString("status"),
+            remoteGatewayStatus = optString("remoteGatewayStatus", "Waiting for Rust gateway"),
         )
 
     private fun ReceivedReportItem.toJson(): JSONObject =

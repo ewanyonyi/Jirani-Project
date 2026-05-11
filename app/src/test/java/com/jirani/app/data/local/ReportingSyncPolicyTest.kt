@@ -133,6 +133,43 @@ class ReportingSyncPolicyTest {
     }
 
     @Test
+    fun remoteGateway_forCommunityReport_remainsEligibleAfterFiveNearbyDeliveries() {
+        val record = ReportingSyncPolicy.createRecord(
+            reportType = "livestock or grazing dispute",
+            generalLocation = "near river",
+            details = "Cattle crossed the grazing boundary this morning.",
+        )
+        val deliveredEnvelope = ReportingSyncPolicy.createEnvelope(record).copy(
+            deliveredDeviceAliases = listOf(
+                "Verifier 1",
+                "Verifier 2",
+                "Verifier 3",
+                "Verifier 4",
+                "Verifier 5",
+            ),
+        )
+
+        assertEquals(5, deliveredEnvelope.deliveredDeviceAliases.size)
+        assertTrue(RemoteGatewaySyncPolicy.canUploadToRemoteGateway(deliveredEnvelope))
+    }
+
+    @Test
+    fun remoteGateway_forSurvivorCenteredReport_isBlocked() {
+        val record = ReportingSyncPolicy.createRecord(
+            reportType = "GBV survivor safety report",
+            generalLocation = "near clinic",
+            details = "Survivor needs private support after sexual violence at night.",
+        )
+        val envelope = ReportingSyncPolicy.createEnvelope(record)
+
+        assertFalse(RemoteGatewaySyncPolicy.canUploadToRemoteGateway(envelope))
+        assertTrue(
+            RemoteGatewaySyncPolicy.remoteGatewayBlockReason(envelope).orEmpty()
+                .contains("Survivor"),
+        )
+    }
+
+    @Test
     fun sendToDevices_whenReportIsStale_doesNotSend() {
         val record = ReportingSyncPolicy.createRecord(
             reportType = "livestock or grazing dispute",

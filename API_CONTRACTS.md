@@ -5,9 +5,9 @@ The Android MVP is local-first and does not require a central API. Any backend A
 
 The full device-to-device and optional OSF-hosted Rust gateway flow is documented in [docs/INFORMATION_FLOW.md](docs/INFORMATION_FLOW.md).
 
-## Optional Future Endpoints
-- POST /sync/envelopes: Submit encrypted or minimized sync envelopes.
-- GET /sync/envelopes: Fetch envelopes available for a trusted community gateway.
+## Optional Rust Gateway Endpoints
+- POST /sync/envelopes: Submit minimized sync envelopes for trusted gateway storage, deduplication, and anonymous analysis. Android sends only sanitized report fields plus envelope metadata and content hash.
+- GET /sync/envelopes: Fetch minimized envelopes available to trusted Jirani Android apps. Android accepts either a JSON array or `{ "envelopes": [...] }` and verifies `contentHash` before storing.
 - POST /analytics/anonymous-summary: Submit opt-in aggregate metrics without PII.
 
 ## Local Data Formats
@@ -19,3 +19,4 @@ The full device-to-device and optional OSF-hosted Rust gateway flow is documente
 - Do not require names, phone numbers, or device identity.
 - Do not upload raw safety reports without explicit consent.
 - Prefer aggregated or encrypted payloads for optional backend prototypes.
+- Domestic violence and GBV survivor-centered reports must not be uploaded to the Rust gateway by the default app flow.

@@ -204,6 +204,11 @@ private fun SubmittedReportList(items: List<SubmittedReportStatus>) {
                             color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
+                            item.remoteGatewayStatus,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
                             if (item.stale) "Stale" else item.status,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -288,6 +293,7 @@ private fun SyncTransport.label(): String = when (this) {
     SyncTransport.WifiDirect -> "Wi-Fi Direct"
     SyncTransport.AndroidShareSheet -> "Android Sharesheet"
     SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
+    SyncTransport.RemoteRustGateway -> "Rust gateway"
 }
 
 private fun Long.toReadableTime(): String =

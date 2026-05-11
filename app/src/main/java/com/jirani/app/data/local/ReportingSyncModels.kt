@@ -34,6 +34,7 @@ enum class SyncTransport {
     WifiDirect,
     AndroidShareSheet,
     QrOrEncryptedFile,
+    RemoteRustGateway,
 }
 
 enum class SyncState {
@@ -84,6 +85,28 @@ data class SyncEnvelope(
 
 fun SyncEnvelope.isStale(nowEpochSeconds: Long = Instant.now().epochSecond): Boolean =
     nowEpochSeconds >= expiresAtEpochSeconds
+
+object RemoteGatewaySyncPolicy {
+    fun canUploadToRemoteGateway(
+        envelope: SyncEnvelope,
+        nowEpochSeconds: Long = Instant.now().epochSecond,
+    ): Boolean =
+        remoteGatewayBlockReason(envelope, nowEpochSeconds) == null
+
+    fun remoteGatewayBlockReason(
+        envelope: SyncEnvelope,
+        nowEpochSeconds: Long = Instant.now().epochSecond,
+    ): String? = when {
+        envelope.isStale(nowEpochSeconds) -> "Report is stale and will not be uploaded."
+        envelope.payload.sensitivity == ReportSensitivity.SurvivorCentered -> "Survivor-centered reports stay out of remote gateway sync."
+        envelope.audienceTier == SyncAudienceTier.SurvivorSupportOnly -> "Survivor-support reports require explicit private handoff."
+        SyncTransport.RemoteRustGateway !in envelope.allowedTransports -> "Remote gateway is not allowed for this report sensitivity."
+        else -> null
+    }
+
+    fun uploadStatusLabel(envelope: SyncEnvelope): String =
+        remoteGatewayBlockReason(envelope) ?: "Waiting for Rust gateway"
+}
 
 data class NearbyJiraniDevice(
     val deviceAlias: String,
@@ -335,6 +358,7 @@ object ReportingDeviceTransfer {
         SyncTransport.WifiDirect -> "Wi-Fi Direct"
         SyncTransport.AndroidShareSheet -> "Android Sharesheet"
         SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
+        SyncTransport.RemoteRustGateway -> "Rust gateway"
     }
 }
 
@@ -410,7 +434,12 @@ object ReportingSyncPolicy {
 
     private fun allowedTransports(sensitivity: ReportSensitivity): List<SyncTransport> = when (sensitivity) {
         ReportSensitivity.SurvivorCentered -> listOf(SyncTransport.QrOrEncryptedFile, SyncTransport.AndroidShareSheet)
-        ReportSensitivity.Protection -> listOf(SyncTransport.NearbyConnections, SyncTransport.WifiDirect, SyncTransport.AndroidShareSheet)
+        ReportSensitivity.Protection -> listOf(
+            SyncTransport.NearbyConnections,
+            SyncTransport.WifiDirect,
+            SyncTransport.AndroidShareSheet,
+            SyncTransport.RemoteRustGateway,
+        )
         ReportSensitivity.Community -> SyncTransport.entries
     }
 
