@@ -50,16 +50,36 @@ For a remote test server, build Android with `JIRANI_REMOTE_GATEWAY_URL` set to 
 Gradle property:
 
 ```bash
-./gradlew assembleDebug -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example
+./gradlew assembleDebug \
+  -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+  -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
 ```
 
 Environment variable:
 
 ```bash
-JIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example ./gradlew assembleDebug
+JIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+JIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token \
+./gradlew assembleDebug
 ```
 
 Use HTTPS for hosted testing. The Android manifest permits cleartext only for emulator/local development hosts through `network_security_config.xml`.
+
+If the Rust server does not set `JIRANI_GATEWAY_TOKEN`, omit `JIRANI_REMOTE_GATEWAY_TOKEN` and Android will not send an auth header.
+
+Android rejects non-HTTPS gateway URLs outside local development hosts (`10.0.2.2`, `localhost`, `127.0.0.1`).
+
+## Anonymous And Reliable Remote Testing
+
+A direct HTTPS request still exposes the connecting IP address at the network layer. Jirani's default gateway privacy model is therefore:
+
+- Android sends only minimized envelopes and stable, low-fingerprint sync headers;
+- Android sends no device ID, reporter ID, GPS, phone number, or account identity;
+- the Rust app does not store IP, User-Agent, device identity, or precise location;
+- the Rust app persists only accepted minimized envelopes when `JIRANI_STORE_PATH` is configured;
+- both sides verify `contentHash`.
+
+For stronger IP anonymity from the gateway operator, place a trusted relay/proxy in front of the Rust server and disable or anonymize proxy access logs.
 
 ## Endpoint Contract
 

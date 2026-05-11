@@ -85,6 +85,12 @@ class RemoteGatewayClient(
             }
 
             val endpoint = baseUrl.trimEnd('/') + "/sync/envelopes"
+            if (!endpoint.isPrivateEnoughForGateway()) {
+                return@withContext RemoteGatewayUploadResult(
+                    uploaded = false,
+                    message = "Remote Rust gateway must use HTTPS outside local emulator testing.",
+                )
+            }
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 connectTimeout = TimeoutMillis
@@ -92,6 +98,7 @@ class RemoteGatewayClient(
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Accept", "application/json")
+                addPrivacyHeaders()
             }
 
             try {
@@ -122,11 +129,15 @@ class RemoteGatewayClient(
     suspend fun downloadAvailableReports(): List<ReceivedReportItem> =
         withContext(Dispatchers.IO) {
             val endpoint = baseUrl.trimEnd('/') + "/sync/envelopes"
+            if (!endpoint.isPrivateEnoughForGateway()) {
+                return@withContext emptyList()
+            }
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = TimeoutMillis
                 readTimeout = TimeoutMillis
                 setRequestProperty("Accept", "application/json")
+                addPrivacyHeaders()
             }
 
             try {
@@ -207,7 +218,26 @@ class RemoteGatewayClient(
     private inline fun <reified T : Enum<T>> JSONObject.optEnum(key: String, fallback: T): T =
         runCatching { enumValueOf<T>(optString(key)) }.getOrDefault(fallback)
 
+    private fun String.isPrivateEnoughForGateway(): Boolean {
+        val url = runCatching { URL(this) }.getOrNull() ?: return false
+        if (url.protocol == "https") return true
+        return url.protocol == "http" && url.host in LocalDevelopmentHosts
+    }
+
+    private fun HttpURLConnection.addPrivacyHeaders() {
+        setRequestProperty("User-Agent", StableUserAgent)
+        setRequestProperty("Cache-Control", "no-store")
+        setRequestProperty("Pragma", "no-cache")
+        setRequestProperty("X-Jirani-Privacy", "minimized-envelope-v1")
+        val token = BuildConfig.JIRANI_REMOTE_GATEWAY_TOKEN.trim()
+        if (token.isNotEmpty()) {
+            setRequestProperty("Authorization", "Bearer $token")
+        }
+    }
+
     private companion object {
         const val TimeoutMillis = 5_000
+        const val StableUserAgent = "Jirani-Android-Sync/1"
+        val LocalDevelopmentHosts = setOf("10.0.2.2", "localhost", "127.0.0.1")
     }
 }

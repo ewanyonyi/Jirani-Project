@@ -10,6 +10,12 @@ val jiraniRemoteGatewayUrl = providers.gradleProperty("JIRANI_REMOTE_GATEWAY_URL
     .get()
     .replace("\\", "\\\\")
     .replace("\"", "\\\"")
+val jiraniRemoteGatewayToken = providers.gradleProperty("JIRANI_REMOTE_GATEWAY_TOKEN")
+    .orElse(providers.environmentVariable("JIRANI_REMOTE_GATEWAY_TOKEN"))
+    .orElse("")
+    .get()
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
 
 android {
     namespace = "com.jirani.app"
@@ -24,6 +30,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "JIRANI_REMOTE_GATEWAY_URL", "\"$jiraniRemoteGatewayUrl\"")
+        buildConfigField("String", "JIRANI_REMOTE_GATEWAY_TOKEN", "\"$jiraniRemoteGatewayToken\"")
     }
 
     buildTypes {

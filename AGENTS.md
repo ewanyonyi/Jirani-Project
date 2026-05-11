@@ -28,6 +28,7 @@ When changing remote sync behavior:
 - Use `JIRANI_REMOTE_GATEWAY_URL` as a Gradle property or environment variable for hosted test servers.
 - Prefer HTTPS for hosted testing. Do not broaden Android cleartext network config without a clear test-only reason.
 - Preserve privacy rules: minimized payloads only, content-hash verification, no PII, and no survivor-centered GBV/domestic default gateway sync.
+- Be explicit that direct HTTPS still exposes source IP at the network layer. Android should not send device IDs, precise location, reporter identity, or high-fingerprint headers. Use a trusted relay/proxy if source-IP anonymity from the gateway operator is required.
 
 ## Tools
 - Android Studio / IntelliJ for native Android development.

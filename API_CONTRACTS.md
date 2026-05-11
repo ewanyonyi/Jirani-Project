@@ -16,7 +16,9 @@ The optional Rust/Rocket gateway lives at `/home/ewanyonyi/dev/jirani-rust`.
 Use `JIRANI_REMOTE_GATEWAY_URL` as a Gradle property or environment variable to point Android at a hosted test server:
 
 ```bash
-./gradlew assembleDebug -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example
+./gradlew assembleDebug \
+  -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+  -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
 ```
 
 ## Local Data Formats
@@ -29,3 +31,4 @@ Use `JIRANI_REMOTE_GATEWAY_URL` as a Gradle property or environment variable to 
 - Do not upload raw safety reports without explicit consent.
 - Prefer aggregated or encrypted payloads for optional backend prototypes.
 - Domestic violence and GBV survivor-centered reports must not be uploaded to the Rust gateway by the default app flow.
+- Direct HTTPS does not hide source IP from the server/network layer; the gateway must avoid storing IP, User-Agent, device, precise location, or reporter identity. Use a trusted relay/proxy if source-IP anonymity from the gateway operator is required.

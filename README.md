@@ -26,10 +26,14 @@ The companion Rust/Rocket test gateway lives at `/home/ewanyonyi/dev/jirani-rust
 Android uses it only as an optional minimized-envelope gateway. Reports still work locally and through Nearby without the server. To point Android at a hosted test server, build with:
 
 ```bash
-./gradlew assembleDebug -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example
+./gradlew assembleDebug \
+  -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+  -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
 ```
 
 See `docs/REMOTE_RUST_GATEWAY.md` for the full Android <-> Rust communication contract.
+
+For hosted testing, use HTTPS and a gateway token. Android will not use plain HTTP for non-local gateway hosts.
 
 ## Nearby Connections Sync
 
