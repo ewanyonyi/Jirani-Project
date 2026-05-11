@@ -19,6 +19,18 @@ An offline-first PeaceTech Android app for careful conflict reporting, local ver
 ## Architecture
 Offline-first with local data storage, privacy-first records, and future peer-to-peer sync capabilities.
 
+## Optional Rust Gateway
+
+The companion Rust/Rocket test gateway lives at `/home/ewanyonyi/dev/jirani-rust`.
+
+Android uses it only as an optional minimized-envelope gateway. Reports still work locally and through Nearby without the server. To point Android at a hosted test server, build with:
+
+```bash
+./gradlew assembleDebug -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example
+```
+
+See `docs/REMOTE_RUST_GATEWAY.md` for the full Android <-> Rust communication contract.
+
 ## Nearby Connections Sync
 
 Jirani uses **Google Nearby Connections** as the first real device-to-device transport for report movement, matching the `CAPSTONE_SPEC.md` direction for trusted nearby sharing. The goal is to let two phones running Jirani find each other without internet, then use the existing sanitized sync-envelope flow to move eligible reports.

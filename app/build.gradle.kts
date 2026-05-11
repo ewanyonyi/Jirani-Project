@@ -4,6 +4,13 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val jiraniRemoteGatewayUrl = providers.gradleProperty("JIRANI_REMOTE_GATEWAY_URL")
+    .orElse(providers.environmentVariable("JIRANI_REMOTE_GATEWAY_URL"))
+    .orElse("http://10.0.2.2:8080")
+    .get()
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+
 android {
     namespace = "com.jirani.app"
     compileSdk = 36
@@ -16,7 +23,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "JIRANI_REMOTE_GATEWAY_URL", "\"http://10.0.2.2:8080\"")
+        buildConfigField("String", "JIRANI_REMOTE_GATEWAY_URL", "\"$jiraniRemoteGatewayUrl\"")
     }
 
     buildTypes {

@@ -8,7 +8,16 @@ The full device-to-device and optional OSF-hosted Rust gateway flow is documente
 ## Optional Rust Gateway Endpoints
 - POST /sync/envelopes: Submit minimized sync envelopes for trusted gateway storage, deduplication, and anonymous analysis. Android sends only sanitized report fields plus envelope metadata and content hash.
 - GET /sync/envelopes: Fetch minimized envelopes available to trusted Jirani Android apps. Android accepts either a JSON array or `{ "envelopes": [...] }` and verifies `contentHash` before storing.
-- POST /analytics/anonymous-summary: Submit opt-in aggregate metrics without PII.
+- GET /analytics/anonymous-summary: Fetch aggregate metrics without PII for trusted demo dashboards.
+
+## Companion Server Repository
+The optional Rust/Rocket gateway lives at `/home/ewanyonyi/dev/jirani-rust`.
+
+Use `JIRANI_REMOTE_GATEWAY_URL` as a Gradle property or environment variable to point Android at a hosted test server:
+
+```bash
+./gradlew assembleDebug -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example
+```
 
 ## Local Data Formats
 - Kotlin domain models for agent input/output.

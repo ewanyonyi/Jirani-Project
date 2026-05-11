@@ -11,6 +11,24 @@ For optional backend work, use Rust 2021 edition with Cargo and the project’s 
 
 For JavaScript or TypeScript demos, use Node LTS.
 
+## Companion Rust Gateway
+The optional Rust/Rocket gateway repository lives at:
+
+```text
+/home/ewanyonyi/dev/jirani-rust
+```
+
+The Android app must remain offline-first. Nearby Connections and local storage should continue working even when the Rust gateway is unavailable.
+
+When changing remote sync behavior:
+
+- Keep Android and Rust models aligned for `SyncEnvelope` and `SanitizedReportPayload`.
+- Update `/home/ewanyonyi/dev/jirani/docs/REMOTE_RUST_GATEWAY.md`.
+- Update `/home/ewanyonyi/dev/jirani-rust/docs/ANDROID_INTEGRATION.md`.
+- Use `JIRANI_REMOTE_GATEWAY_URL` as a Gradle property or environment variable for hosted test servers.
+- Prefer HTTPS for hosted testing. Do not broaden Android cleartext network config without a clear test-only reason.
+- Preserve privacy rules: minimized payloads only, content-hash verification, no PII, and no survivor-centered GBV/domestic default gateway sync.
+
 ## Tools
 - Android Studio / IntelliJ for native Android development.
 - VS Code with Codex/Copilot plugin for code completion, prompt-driven guidance, and project workflow.
