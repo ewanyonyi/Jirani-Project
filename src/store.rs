@@ -1,0 +1,148 @@
+use crate::models::{AnonymousSummary, AreaSummary, SummaryCount, SyncEnvelope};
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap};
+use std::env;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+
+#[derive(Default)]
+pub struct EnvelopeStore {
+    envelopes: Mutex<HashMap<String, SyncEnvelope>>,
+    storage_path: Option<PathBuf>,
+}
+
+impl EnvelopeStore {
+    pub fn from_env() -> Self {
+        env::var("JIRANI_STORE_PATH")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .map(PathBuf::from)
+            .map(Self::from_path)
+            .unwrap_or_default()
+    }
+
+    pub fn from_path(path: PathBuf) -> Self {
+        let envelopes = load_envelopes(&path).unwrap_or_default();
+        Self {
+            envelopes: Mutex::new(envelopes),
+            storage_path: Some(path),
+        }
+    }
+
+    pub fn upsert(&self, envelope: SyncEnvelope) -> StoreWrite {
+        let mut envelopes = self.envelopes.lock().expect("envelope store lock poisoned");
+        if envelopes.contains_key(&envelope.envelope_id) {
+            return StoreWrite::AlreadyStored;
+        }
+        let envelope_id = envelope.envelope_id.clone();
+        envelopes.insert(envelope_id.clone(), envelope);
+
+        if let Some(path) = &self.storage_path {
+            if let Err(error) = persist_envelopes(path, &envelopes) {
+                envelopes.remove(&envelope_id);
+                return StoreWrite::PersistFailed(error.to_string());
+            }
+        }
+
+        StoreWrite::Created
+    }
+
+    pub fn list(&self) -> Vec<SyncEnvelope> {
+        let envelopes = self.envelopes.lock().expect("envelope store lock poisoned");
+        let mut values = envelopes.values().cloned().collect::<Vec<_>>();
+        values.sort_by(|left, right| {
+            right
+                .payload
+                .submitted_at_epoch_seconds
+                .cmp(&left.payload.submitted_at_epoch_seconds)
+        });
+        values
+    }
+
+    pub fn summary(&self) -> AnonymousSummary {
+        let envelopes = self.envelopes.lock().expect("envelope store lock poisoned");
+        let mut by_sensitivity = BTreeMap::<String, usize>::new();
+        let mut by_verification_status = BTreeMap::<String, usize>::new();
+        let mut by_general_area = BTreeMap::<String, usize>::new();
+
+        for envelope in envelopes.values() {
+            *by_sensitivity
+                .entry(envelope.payload.sensitivity.clone())
+                .or_insert(0) += 1;
+            *by_verification_status
+                .entry(envelope.payload.verification_status.clone())
+                .or_insert(0) += 1;
+            *by_general_area
+                .entry(envelope.payload.general_area.clone())
+                .or_insert(0) += 1;
+        }
+
+        AnonymousSummary {
+            total_envelopes: envelopes.len(),
+            by_sensitivity: to_counts(by_sensitivity),
+            by_verification_status: to_counts(by_verification_status),
+            top_areas: to_area_counts(by_general_area),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StoreWrite {
+    Created,
+    AlreadyStored,
+    PersistFailed(String),
+}
+
+fn load_envelopes(path: &Path) -> io::Result<HashMap<String, SyncEnvelope>> {
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let body = fs::read_to_string(path)?;
+    let envelopes: Vec<SyncEnvelope> = serde_json::from_str(&body).unwrap_or_default();
+    Ok(envelopes
+        .into_iter()
+        .map(|envelope| (envelope.envelope_id.clone(), envelope))
+        .collect())
+}
+
+fn persist_envelopes(path: &Path, envelopes: &HashMap<String, SyncEnvelope>) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut values = envelopes.values().cloned().collect::<Vec<_>>();
+    values.sort_by(|left, right| left.envelope_id.cmp(&right.envelope_id));
+    let body = serde_json::to_string_pretty(&values)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, body)?;
+    fs::rename(tmp_path, path)?;
+    Ok(())
+}
+
+fn to_counts(values: BTreeMap<String, usize>) -> Vec<SummaryCount> {
+    values
+        .into_iter()
+        .map(|(key, count)| SummaryCount { key, count })
+        .collect()
+}
+
+fn to_area_counts(values: BTreeMap<String, usize>) -> Vec<AreaSummary> {
+    let mut counts = values
+        .into_iter()
+        .map(|(general_area, count)| AreaSummary {
+            general_area,
+            count,
+        })
+        .collect::<Vec<_>>();
+    counts.sort_by(|left, right| {
+        right
+            .count
+            .cmp(&left.count)
+            .then_with(|| left.general_area.cmp(&right.general_area))
+            .then(Ordering::Equal)
+    });
+    counts.truncate(8);
+    counts
+}
