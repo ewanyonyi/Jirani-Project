@@ -19,9 +19,9 @@ An offline-first PeaceTech Android app for careful conflict reporting, local ver
 ## Architecture
 Offline-first with local data storage, privacy-first records, and future peer-to-peer sync capabilities.
 
-## Optional Rust Gateway
+## Optional Jirani Server
 
-The companion Rust/Rocket test gateway lives at `/home/ewanyonyi/dev/jirani-rust`.
+The companion Jirani Server, implemented with Rust/Rocket, lives at `/home/ewanyonyi/dev/jirani-rust`.
 
 Android uses it only as an optional minimized-envelope gateway. Reports still work locally and through Nearby without the server. To point Android at a hosted test server, build with:
 
@@ -40,7 +40,7 @@ cargo run
 
 For hosted testing, use HTTPS and a gateway token. Android will not use plain
 HTTP for non-local gateway hosts. See `docs/COMMUNICATION.md` for the full
-Android <-> Rust sync and relay contract.
+Android <-> Jirani Server sync and relay contract.
 
 Current hosted test gateway:
 

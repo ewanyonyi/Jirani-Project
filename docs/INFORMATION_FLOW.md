@@ -1,7 +1,7 @@
 # Information Flow: Device Sync to Optional OSF Gateway
 
 ## Purpose
-This document describes how Jirani moves community information from one device to another, then optionally to a Rust server hosted by a trusted partner such as OSF for anonymous analysis and aggregation.
+This document describes how Jirani moves community information from one device to another, then optionally to a Jirani Server hosted by a trusted partner such as OSF for anonymous analysis and aggregation.
 
 The core rule is that Jirani works locally first. Sharing is delayed, consent-based, and transport-agnostic.
 
@@ -74,7 +74,7 @@ The current app demonstrates the device-to-device movement with an in-app truste
 5. The packet seals the sanitized payload before movement and carries a content hash for integrity checking.
 6. The receiving device opens the packet, verifies the hash, rejects tampered packets, and stores only the anonymized report fields.
 7. Eligible reports relay to a maximum of five unique trusted devices, then stop nearby relay.
-8. If a configured Rust gateway is reachable, eligible minimized reports can still upload to the gateway even after reaching five nearby devices.
+8. If a configured Jirani Server is reachable, eligible minimized reports can still upload to the server even after reaching five nearby devices.
 9. Reports stop moving when their expiry window is reached, even if fewer than five devices received them.
 
 For the capstone demo, packet sealing uses a local AES-GCM demo key so the workflow can be tested without a production key exchange service. A production version should replace this with per-device key exchange through Nearby Connections, Wi-Fi Direct session keys, or another audited cryptographic handshake.
@@ -122,7 +122,7 @@ Other trusted devices / community gateway
   |
   | 9. Gateway or originating app uploads opt-in minimized data when internet exists
   v
-Optional OSF-hosted Rust server
+Optional OSF-hosted Jirani Server
   |
   | 10. Server stores aggregates, trends, and non-PII analytics
   v
@@ -160,15 +160,15 @@ Trusted verifier / community gateway
   |
   | 6. Gateway uploads opt-in minimized data when internet exists
   v
-Optional OSF-hosted Rust server
+Optional OSF-hosted Jirani Server
   |
   | 7. Server performs aggregation without reporter identity
   v
 Anonymous regional safety trends and coordination insights
 ```
 
-## Optional OSF Rust Server Role
-The Rust server is not required for participation. It is a trusted optional gateway for communities that want aggregation, backup of minimized sync envelopes, or regional analysis.
+## Optional OSF Jirani Server Role
+The Jirani Server is not required for participation. It is a trusted optional gateway for communities that want aggregation, backup of minimized sync envelopes, or regional analysis.
 
 Recommended responsibilities:
 - Accept minimized or encrypted sync envelopes.
@@ -185,8 +185,8 @@ The server should not:
 - Publish raw reports as public records.
 - Treat unverified anonymous reports as confirmed facts.
 
-## Android-Originated Rust Gateway Upload
-The Android app now keeps a separate Rust gateway queue for minimized report envelopes. This queue is independent from the five-device Nearby relay count, so a community or protection report can be uploaded when the app later reaches the gateway even if it already reached five nearby Jirani phones.
+## Android-Originated Jirani Server Upload
+The Android app now keeps a separate Jirani Server queue for minimized report envelopes. This queue is independent from the five-device Nearby relay count, so a community or protection report can be uploaded when the app later reaches the server even if it already reached five nearby Jirani phones.
 
 Default development endpoint:
 
@@ -201,7 +201,7 @@ The uploaded JSON includes:
 - audience tier, version, expiry, and modified day bucket;
 - sanitized payload fields only: report type, general area, approximate time window, observed risk, verification status, and sensitivity.
 
-When the app can reach the same gateway, it also calls `GET /sync/envelopes`, accepts an array or `{ "envelopes": [...] }`, verifies each payload against `contentHash`, and stores valid items in the receiving-device inbox as Rust gateway downloads.
+When the app can reach the same server, it also calls `GET /sync/envelopes`, accepts an array or `{ "envelopes": [...] }`, verifies each payload against `contentHash`, and stores valid items in the receiving-device inbox as Jirani Server downloads.
 
 The app does not upload survivor-centered domestic violence or GBV reports through this default gateway path.
 

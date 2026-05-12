@@ -358,7 +358,7 @@ private fun SyncTransport.label(): String = when (this) {
     SyncTransport.WifiDirect -> "Wi-Fi Direct"
     SyncTransport.AndroidShareSheet -> "Android Sharesheet"
     SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
-    SyncTransport.RemoteRustGateway -> "Rust gateway"
+    SyncTransport.RemoteRustGateway -> "Jirani Server"
 }
 
 private fun Long.toReadableTime(): String =

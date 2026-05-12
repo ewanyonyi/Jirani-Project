@@ -2,7 +2,7 @@
 
 This document describes the proposed Phase 2 offline-first relay layer for
 Jirani. The current MVP already supports minimized `SyncEnvelope` upload and
-download through the optional Rust/Rocket gateway. Relay bundles are a separate
+download through the optional Jirani Server. Relay bundles are a separate
 contract so the existing Android gateway sync can stay stable.
 
 The goal is to support community safety alerts and delayed synchronization while
@@ -85,11 +85,11 @@ The UI should avoid implying that unverified reports are confirmed incidents.
 Alert copy should use cautious language such as "reported", "pending review",
 or "needs local verification".
 
-## 4. Rust/Rocket Gateway Responsibilities
+## 4. Jirani Server Responsibilities
 
 The companion repository at `/home/ewanyonyi/dev/jirani-rust` owns the optional
-internet gateway. It should stay small, auditable, and compatible with the
-existing minimized sync API.
+internet gateway, implemented with Rust/Rocket. It should stay small, auditable,
+and compatible with the existing minimized sync API.
 
 The current gateway contract supports:
 
@@ -114,7 +114,7 @@ Android sends only sanitized sync envelopes to the gateway:
 ```text
 Jirani Android app
   -> POST /sync/envelopes
-  -> Rust/Rocket gateway
+  -> Jirani Server
   -> stores minimized envelope if privacy and hash checks pass
 
 Jirani Android app
@@ -124,7 +124,7 @@ Jirani Android app
 ```
 
 Nearby relay and gateway upload are independent. A report can reach five nearby
-devices and still upload later when the app reaches the Rust gateway.
+devices and still upload later when the app reaches the Jirani Server.
 
 The Android app expects:
 
@@ -153,7 +153,7 @@ Hosted test gateway:
 https://snf-6731.vlab.ac.ke
 ```
 
-Rust server:
+Local Jirani Server:
 
 ```bash
 cd /home/ewanyonyi/dev/jirani-rust
@@ -179,7 +179,7 @@ JIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token \
 ./gradlew assembleDebug
 ```
 
-If the Rust server does not set `JIRANI_GATEWAY_TOKEN`, omit
+If the Jirani Server does not set `JIRANI_GATEWAY_TOKEN`, omit
 `JIRANI_REMOTE_GATEWAY_TOKEN` and Android will not send an auth header.
 
 As of May 12, 2026, `https://snf-6731.vlab.ac.ke/health` responds successfully
@@ -194,7 +194,7 @@ Android rejects non-HTTPS gateway URLs outside local development hosts
 (`10.0.2.2`, `localhost`, `127.0.0.1`).
 
 Relay support is integrated as a separate API surface instead of changing the
-existing sync envelope contract. The companion Rust gateway exposes:
+existing sync envelope contract. The companion Jirani Server exposes:
 
 - `POST /relay/bundles`: accept privacy-safe relay bundles from trusted Android
   clients.
@@ -203,7 +203,7 @@ existing sync envelope contract. The companion Rust gateway exposes:
 - `GET /relay/public-key`: optional endpoint for Android to fetch the gateway's
   configured encryption public key.
 
-The Rust gateway should validate and store only:
+The Jirani Server should validate and store only:
 
 - a bundle ID;
 - a minimized public header;
@@ -280,11 +280,11 @@ alertType|generalArea|timeWindow|riskLevel|message|verificationStatus|audienceTi
 - Android sends only minimized envelopes and stable, low-fingerprint sync
   headers through the current gateway flow. Android sends no device ID, reporter
   ID, GPS, phone number, account identity, or precise location.
-- The Rust gateway should not store IP, User-Agent, device identity, or precise
+- The Jirani Server should not store IP, User-Agent, device identity, or precise
   location. When `JIRANI_STORE_PATH` is configured, it should persist only
   accepted minimized envelopes.
 - For stronger IP anonymity from the gateway operator, place a trusted
-  relay/proxy in front of the Rust server and disable or anonymize proxy access
+  relay/proxy in front of the Jirani Server and disable or anonymize proxy access
   logs.
 - Multi-peer verification is an Android-side UI trust signal, not proof that an
   incident occurred.

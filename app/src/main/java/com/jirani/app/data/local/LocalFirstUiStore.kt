@@ -49,7 +49,7 @@ data class SubmittedReportStatus(
     val maxDevices: Int,
     val stale: Boolean,
     val status: String,
-    val remoteGatewayStatus: String = "Waiting for Rust gateway",
+    val remoteGatewayStatus: String = "Waiting for Jirani Server",
 )
 
 data class NetworkSnapshot(
@@ -325,7 +325,7 @@ object LocalFirstUiStore {
         _network.update { current ->
             current.copy(
                 remoteRelayBundles = current.remoteRelayBundles.filterNot { it.bundleHash == bundleHash },
-                lastTransferMessage = "A relay bundle was uploaded to the Rust gateway.",
+                lastTransferMessage = "A relay bundle was uploaded to the Jirani Server.",
             )
         }
     }
@@ -342,12 +342,12 @@ object LocalFirstUiStore {
                 remoteGatewayEnvelopes = current.remoteGatewayEnvelopes.filterNot { it.envelopeId == envelopeId },
                 submittedReports = current.submittedReports.map { report ->
                     if (report.envelopeId == envelopeId) {
-                        report.copy(remoteGatewayStatus = "Uploaded to Rust gateway")
+                        report.copy(remoteGatewayStatus = "Uploaded to Jirani Server")
                     } else {
                         report
                     }
                 },
-                lastTransferMessage = "An anonymized report was uploaded to the Rust gateway.",
+                lastTransferMessage = "An anonymized report was uploaded to the Jirani Server.",
             )
         }
     }
@@ -358,7 +358,7 @@ object LocalFirstUiStore {
             current.copy(
                 submittedReports = current.submittedReports.map { report ->
                     if (report.envelopeId == envelopeId) {
-                        report.copy(remoteGatewayStatus = "Rust gateway pending")
+                        report.copy(remoteGatewayStatus = "Jirani Server pending")
                     } else {
                         report
                     }
@@ -447,7 +447,7 @@ object LocalFirstUiStore {
             } else {
                 current.copy(
                     receivedReports = newItems + current.receivedReports,
-                    lastTransferMessage = "Downloaded ${newItems.size} anonymized report(s) from the Rust gateway.",
+                    lastTransferMessage = "Downloaded ${newItems.size} anonymized report(s) from the Jirani Server.",
                 )
             }
         }
@@ -455,7 +455,7 @@ object LocalFirstUiStore {
 
     @Synchronized
     fun receiveRemoteRelayBundles(bundles: List<RelayBundle>) {
-        bundles.forEach { receiveRelayBundle(it, "Rust relay gateway") }
+        bundles.forEach { receiveRelayBundle(it, "Jirani Server") }
     }
 
     fun shareNextReportToNearbyDevice(): TransferResult {
@@ -881,7 +881,7 @@ object LocalFirstUiStore {
             receivedReports = json.optJSONArray("receivedReports").toList { it.toReceivedReportItem() },
             receivedRelayBundles = json.optJSONArray("receivedRelayBundles").toList { it.toRelayBundleInboxItem() },
             submittedReports = json.optJSONArray("submittedReports").toList { it.toSubmittedReportStatus() },
-            lastTransferMessage = json.optString("lastTransferMessage").ifBlank { null },
+            lastTransferMessage = json.optString("lastTransferMessage").normalizeServerLabel().ifBlank { null },
         )
     }
 
@@ -915,8 +915,9 @@ object LocalFirstUiStore {
             deliveredCount = optInt("deliveredCount"),
             maxDevices = optInt("maxDevices", 5),
             stale = optBoolean("stale"),
-            status = optString("status"),
-            remoteGatewayStatus = optString("remoteGatewayStatus", "Waiting for Rust gateway"),
+            status = optString("status").normalizeServerLabel(),
+            remoteGatewayStatus = optString("remoteGatewayStatus", "Waiting for Jirani Server")
+                .normalizeServerLabel(),
         )
 
     private fun ReceivedReportItem.toJson(): JSONObject =
@@ -1106,6 +1107,11 @@ object LocalFirstUiStore {
 
     private inline fun <reified T : Enum<T>> JSONObject.optEnum(key: String, fallback: T): T =
         runCatching { enumValueOf<T>(optString(key)) }.getOrDefault(fallback)
+
+    private fun String.normalizeServerLabel(): String =
+        replace("Rust relay gateway", "Jirani Server")
+            .replace("Rust gateway", "Jirani Server")
+            .replace("Rust Gateway", "Jirani Server")
 
     private const val StoreName = "jirani_local_first_store"
     private const val NetworkSnapshotKey = "network_snapshot_v1"

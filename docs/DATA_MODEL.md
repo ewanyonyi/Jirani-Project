@@ -29,4 +29,4 @@ All `id` values should be cryptographically random non-PII identifiers. They mus
 - Sensitive fields: encrypted storage pattern before real-world use.
 - Sync: delayed nearby exchange with conflict-aware envelopes and sensitivity-based transport rules.
 - Cloud/backend: optional prototype extension, not required for core participation.
-- Information flow: see `INFORMATION_FLOW.md` for BLE/Nearby/Wi-Fi Direct enabled and disabled sharing paths through an optional trusted Rust analytics gateway.
+- Information flow: see `INFORMATION_FLOW.md` for BLE/Nearby/Wi-Fi Direct enabled and disabled sharing paths through an optional trusted Jirani Server.

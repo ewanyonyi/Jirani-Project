@@ -54,6 +54,7 @@ object RemoteGatewaySyncRuntime {
     private suspend fun uploadPendingReports() {
         if (uploading) return
         uploading = true
+        var shouldRetry = false
         try {
             client.downloadRelayPublicKey()?.let { key ->
                 RelayBundlePolicy.configureGatewayPublicKey(key)
@@ -64,6 +65,7 @@ object RemoteGatewaySyncRuntime {
                     LocalFirstUiStore.markRemoteGatewayUploadSucceeded(envelope.envelopeId)
                 } else {
                     LocalFirstUiStore.markRemoteGatewayUploadFailed(envelope.envelopeId, result.message)
+                    shouldRetry = true
                     delay(RetryRestMillis)
                 }
             }
@@ -73,6 +75,7 @@ object RemoteGatewaySyncRuntime {
                     LocalFirstUiStore.markRemoteRelayBundleUploadSucceeded(bundle.bundleHash)
                 } else {
                     LocalFirstUiStore.markRemoteRelayBundleUploadFailed(result.message)
+                    shouldRetry = true
                     delay(RetryRestMillis)
                 }
             }
@@ -80,6 +83,16 @@ object RemoteGatewaySyncRuntime {
             LocalFirstUiStore.receiveRemoteRelayBundles(client.downloadAvailableRelayBundles())
         } finally {
             uploading = false
+        }
+        if (
+            shouldRetry &&
+            (LocalFirstUiStore.pendingRemoteGatewayEnvelopes().isNotEmpty() ||
+                LocalFirstUiStore.pendingRemoteRelayBundles().isNotEmpty())
+        ) {
+            scope.launch {
+                delay(RetryRestMillis)
+                uploadPendingReports()
+            }
         }
     }
 
@@ -104,7 +117,7 @@ class RemoteGatewayClient(
             if (!endpoint.isPrivateEnoughForGateway()) {
                 return@withContext RemoteGatewayUploadResult(
                     uploaded = false,
-                    message = "Remote Rust gateway must use HTTPS outside local emulator testing.",
+                    message = "Jirani Server must use HTTPS outside local emulator testing.",
                 )
             }
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -124,18 +137,18 @@ class RemoteGatewayClient(
                 if (code in 200..299 || code == HttpURLConnection.HTTP_CONFLICT) {
                     RemoteGatewayUploadResult(
                         uploaded = true,
-                        message = "Anonymized report uploaded to Rust gateway.",
+                        message = "Anonymized report uploaded to Jirani Server.",
                     )
                 } else {
                     RemoteGatewayUploadResult(
                         uploaded = false,
-                        message = "Rust gateway rejected the anonymized report with HTTP $code.",
+                        message = "Jirani Server rejected the anonymized report with HTTP $code.",
                     )
                 }
             } catch (error: IOException) {
                 RemoteGatewayUploadResult(
                     uploaded = false,
-                    message = "Rust gateway unavailable; anonymized report will retry later.",
+                    message = "Jirani Server unavailable or sync endpoint timed out; anonymized report will retry later.",
                 )
             } finally {
                 connection.disconnect()
@@ -178,7 +191,7 @@ class RemoteGatewayClient(
             if (!endpoint.isPrivateEnoughForGateway()) {
                 return@withContext RemoteGatewayUploadResult(
                     uploaded = false,
-                    message = "Remote Rust gateway must use HTTPS outside local emulator testing.",
+                    message = "Jirani Server must use HTTPS outside local emulator testing.",
                 )
             }
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -198,18 +211,18 @@ class RemoteGatewayClient(
                 if (code in 200..299 || code == HttpURLConnection.HTTP_CONFLICT) {
                     RemoteGatewayUploadResult(
                         uploaded = true,
-                        message = "Relay bundle uploaded to Rust gateway.",
+                        message = "Relay bundle uploaded to Jirani Server.",
                     )
                 } else {
                     RemoteGatewayUploadResult(
                         uploaded = false,
-                        message = "Rust gateway rejected the relay bundle with HTTP $code.",
+                        message = "Jirani Server rejected the relay bundle with HTTP $code.",
                     )
                 }
             } catch (error: IOException) {
                 RemoteGatewayUploadResult(
                     uploaded = false,
-                    message = "Rust relay gateway unavailable; bundle will retry later.",
+                    message = "Jirani Server relay endpoint unavailable or timed out; bundle will retry later.",
                 )
             } finally {
                 connection.disconnect()
@@ -336,7 +349,7 @@ class RemoteGatewayClient(
         val envelopeId = optString("envelopeId").ifBlank { contentHash.take(12) }
         return ReceivedReportItem(
             packetId = "remote-$envelopeId",
-            fromAlias = "Rust gateway",
+            fromAlias = "Jirani Server",
             transport = SyncTransport.RemoteRustGateway,
             reportType = payload.reportType,
             generalArea = payload.generalArea,
