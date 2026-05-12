@@ -23,7 +23,7 @@ The Android app must remain offline-first. Nearby Connections and local storage 
 When changing remote sync behavior:
 
 - Keep Android and Rust models aligned for `SyncEnvelope` and `SanitizedReportPayload`.
-- Update `/home/ewanyonyi/dev/jirani/docs/REMOTE_RUST_GATEWAY.md`.
+- Update `/home/ewanyonyi/dev/jirani/docs/COMMUNICATION.md`.
 - Update `/home/ewanyonyi/dev/jirani-rust/docs/ANDROID_INTEGRATION.md`.
 - Use `JIRANI_REMOTE_GATEWAY_URL` as a Gradle property or environment variable for hosted test servers.
 - Prefer HTTPS for hosted testing. Do not broaden Android cleartext network config without a clear test-only reason.

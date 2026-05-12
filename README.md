@@ -31,9 +31,16 @@ Android uses it only as an optional minimized-envelope gateway. Reports still wo
   -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
 ```
 
-See `docs/REMOTE_RUST_GATEWAY.md` for the full Android <-> Rust communication contract.
+For local gateway testing, run:
 
-For hosted testing, use HTTPS and a gateway token. Android will not use plain HTTP for non-local gateway hosts.
+```bash
+cd /home/ewanyonyi/dev/jirani-rust
+cargo run
+```
+
+For hosted testing, use HTTPS and a gateway token. Android will not use plain
+HTTP for non-local gateway hosts. See `docs/COMMUNICATION.md` for the full
+Android <-> Rust sync and relay contract.
 
 ## Nearby Connections Sync
 
