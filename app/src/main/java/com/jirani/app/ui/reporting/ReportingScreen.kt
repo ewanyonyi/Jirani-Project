@@ -186,20 +186,12 @@ private fun TrustIndicators() {
         "No exact GPS",
         "Works offline",
     )
-    BoxWithConstraints {
-        if (maxWidth < 360.dp) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                indicators.forEach { TrustIndicator(it) }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                indicators.forEach { label ->
-                    TrustIndicator(label = label, modifier = Modifier.weight(1f))
-                }
-            }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        indicators.forEach { label ->
+            TrustIndicator(label = label, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -210,28 +202,29 @@ private fun TrustIndicator(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.heightIn(min = 36.dp),
+        modifier = modifier.heightIn(min = 34.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = MaterialTheme.shapes.small,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.32f)),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 5.dp, vertical = 7.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_status_check),
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(14.dp),
                 tint = TrustGreen,
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
+                softWrap = false,
             )
         }
     }
