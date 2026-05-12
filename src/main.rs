@@ -4,11 +4,12 @@ mod routes;
 mod store;
 
 #[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let store = store::GatewayStore::from_env().await?;
+
     rocket::build()
         .manage(auth::GatewayConfig::from_env())
-        .manage(store::EnvelopeStore::from_env())
-        .manage(store::RelayBundleStore::from_env())
+        .manage(store)
         .mount("/", routes::routes())
         .launch()
         .await?;

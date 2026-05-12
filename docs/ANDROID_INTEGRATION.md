@@ -54,10 +54,12 @@ Local demos can run without auth. Hosted test servers should set:
 
 ```bash
 JIRANI_GATEWAY_TOKEN=change-this-demo-token \
-JIRANI_STORE_PATH=./data/envelopes.json \
-JIRANI_RELAY_STORE_PATH=./data/relay-bundles.json \
+JIRANI_DATABASE_URL=postgres://jirani:jirani_dev_password@localhost:5432/jirani_gateway \
 cargo run
 ```
+
+For lightweight demos without PostgreSQL, `JIRANI_STORE_PATH` and
+`JIRANI_RELAY_STORE_PATH` can still be used for JSON-file persistence.
 
 Android sends `Authorization: Bearer <token>` when built with `JIRANI_REMOTE_GATEWAY_TOKEN`.
 

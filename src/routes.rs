@@ -3,7 +3,7 @@ use crate::models::{
     AnonymousSummary, ApiMessage, EnvelopeList, HealthResponse, PrivacyResponse, RelayBundle,
     RelayBundleList, RelayPublicKeyResponse, SyncEnvelope,
 };
-use crate::store::{EnvelopeStore, RelayBundleStore, StoreWrite};
+use crate::store::{GatewayStore, StoreWrite};
 use rocket::http::Status;
 use rocket::response::content::RawHtml;
 use rocket::serde::json::Json;
@@ -25,9 +25,9 @@ fn privacy() -> Json<PrivacyResponse> {
 }
 
 #[post("/sync/envelopes", format = "json", data = "<envelope>")]
-fn upload_envelope(
+async fn upload_envelope(
     _auth: GatewayAuth,
-    store: &State<EnvelopeStore>,
+    store: &State<GatewayStore>,
     envelope: Json<SyncEnvelope>,
 ) -> Result<Status, (Status, Json<ApiMessage>)> {
     let envelope = envelope.into_inner();
@@ -35,7 +35,7 @@ fn upload_envelope(
         .validate_for_gateway(now_epoch_seconds())
         .map_err(|message| (Status::BadRequest, Json(ApiMessage { message })))?;
 
-    match store.upsert(envelope) {
+    match store.upsert_envelope(envelope).await {
         StoreWrite::Created => Ok(Status::Created),
         StoreWrite::AlreadyStored => Ok(Status::Conflict),
         StoreWrite::PersistFailed(message) => Err((
@@ -48,21 +48,29 @@ fn upload_envelope(
 }
 
 #[get("/sync/envelopes")]
-fn list_envelopes(_auth: GatewayAuth, store: &State<EnvelopeStore>) -> Json<EnvelopeList> {
-    Json(EnvelopeList {
-        envelopes: store.list(),
-    })
+async fn list_envelopes(
+    _auth: GatewayAuth,
+    store: &State<GatewayStore>,
+) -> Result<Json<EnvelopeList>, (Status, Json<ApiMessage>)> {
+    store
+        .list_envelopes()
+        .await
+        .map(|envelopes| Json(EnvelopeList { envelopes }))
+        .map_err(storage_read_error)
 }
 
 #[get("/analytics/anonymous-summary")]
-fn anonymous_summary(_auth: GatewayAuth, store: &State<EnvelopeStore>) -> Json<AnonymousSummary> {
-    Json(store.summary())
+async fn anonymous_summary(
+    _auth: GatewayAuth,
+    store: &State<GatewayStore>,
+) -> Result<Json<AnonymousSummary>, (Status, Json<ApiMessage>)> {
+    store.summary().await.map(Json).map_err(storage_read_error)
 }
 
 #[post("/relay/bundles", format = "json", data = "<bundle>")]
-fn upload_relay_bundle(
+async fn upload_relay_bundle(
     _auth: GatewayAuth,
-    store: &State<RelayBundleStore>,
+    store: &State<GatewayStore>,
     bundle: Json<RelayBundle>,
 ) -> Result<Status, (Status, Json<ApiMessage>)> {
     let bundle = bundle.into_inner();
@@ -70,7 +78,7 @@ fn upload_relay_bundle(
         .validate_for_gateway(now_epoch_seconds())
         .map_err(|message| (Status::BadRequest, Json(ApiMessage { message })))?;
 
-    match store.upsert(bundle) {
+    match store.upsert_relay_bundle(bundle).await {
         StoreWrite::Created => Ok(Status::Created),
         StoreWrite::AlreadyStored => Ok(Status::Conflict),
         StoreWrite::PersistFailed(message) => Err((
@@ -83,13 +91,15 @@ fn upload_relay_bundle(
 }
 
 #[get("/relay/bundles")]
-fn list_relay_bundles(
+async fn list_relay_bundles(
     _auth: GatewayAuth,
-    store: &State<RelayBundleStore>,
-) -> Json<RelayBundleList> {
-    Json(RelayBundleList {
-        bundles: store.list(),
-    })
+    store: &State<GatewayStore>,
+) -> Result<Json<RelayBundleList>, (Status, Json<ApiMessage>)> {
+    store
+        .list_relay_bundles()
+        .await
+        .map(|bundles| Json(RelayBundleList { bundles }))
+        .map_err(storage_read_error)
 }
 
 #[get("/relay/public-key")]
@@ -108,17 +118,21 @@ fn relay_public_key(
 }
 
 #[get("/?<token>")]
-fn dashboard(
+async fn dashboard(
     token: Option<&str>,
-    store: &State<EnvelopeStore>,
+    store: &State<GatewayStore>,
     config: &State<GatewayConfig>,
 ) -> RawHtml<String> {
     if !config.accepts_token(token) {
         return RawHtml(access_page());
     }
 
-    let summary = store.summary();
-    let envelopes = store.list();
+    let Ok(summary) = store.summary().await else {
+        return RawHtml(storage_error_page());
+    };
+    let Ok(envelopes) = store.list_envelopes().await else {
+        return RawHtml(storage_error_page());
+    };
     let recent_rows = envelopes
         .iter()
         .take(6)
@@ -231,9 +245,11 @@ fn privacy_page(_auth: GatewayAuth) -> RawHtml<String> {
 }
 
 #[get("/reports")]
-fn reports(auth: GatewayAuth, store: &State<EnvelopeStore>) -> RawHtml<String> {
-    let rows = store
-        .list()
+async fn reports(auth: GatewayAuth, store: &State<GatewayStore>) -> RawHtml<String> {
+    let Ok(envelopes) = store.list_envelopes().await else {
+        return RawHtml(storage_error_page());
+    };
+    let rows = envelopes
         .iter()
         .map(report_row)
         .collect::<Vec<_>>()
@@ -267,8 +283,10 @@ fn reports(auth: GatewayAuth, store: &State<EnvelopeStore>) -> RawHtml<String> {
 }
 
 #[get("/analysis")]
-fn analysis(auth: GatewayAuth, store: &State<EnvelopeStore>) -> RawHtml<String> {
-    let summary = store.summary();
+async fn analysis(auth: GatewayAuth, store: &State<GatewayStore>) -> RawHtml<String> {
+    let Ok(summary) = store.summary().await else {
+        return RawHtml(storage_error_page());
+    };
     let link_suffix = auth.link_suffix();
     RawHtml(page(
         "Jirani Analysis",
@@ -323,6 +341,27 @@ fn privacy_response() -> PrivacyResponse {
         payload_policy: "Only minimized sync envelopes are accepted. Survivor-centered reports, obvious PII, expired envelopes, and hash mismatches are rejected.",
         hosted_recommendation: "Use HTTPS, disable reverse-proxy access logs or anonymize them, rotate the shared test token, and use a trusted relay/proxy if IP anonymity from the gateway operator is required.",
     }
+}
+
+fn storage_read_error(message: String) -> (Status, Json<ApiMessage>) {
+    (
+        Status::InternalServerError,
+        Json(ApiMessage {
+            message: format!("Storage read failed: {message}"),
+        }),
+    )
+}
+
+fn storage_error_page() -> String {
+    page(
+        "Jirani Storage Error",
+        r#"
+        <section class="panel">
+          <h1>Storage unavailable</h1>
+          <p class="note">The gateway could not read its configured store. Check PostgreSQL connectivity or local storage configuration.</p>
+        </section>
+        "#,
+    )
 }
 
 fn now_epoch_seconds() -> i64 {

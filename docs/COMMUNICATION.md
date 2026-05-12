@@ -79,6 +79,14 @@ The current gateway already supports:
 - token auth for hosted demos;
 - content-hash validation, deduplication, expiry checks, and basic PII rejection.
 
+Storage is selected by environment:
+
+- default local runs use in-memory storage;
+- `JIRANI_STORE_PATH` and `JIRANI_RELAY_STORE_PATH` enable JSON-file demo
+  persistence;
+- `JIRANI_DATABASE_URL` enables PostgreSQL storage for accepted sync envelopes
+  and relay bundles.
+
 Relay support can be integrated as a separate API surface instead of changing
 the existing sync envelope contract:
 
