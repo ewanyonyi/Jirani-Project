@@ -73,17 +73,104 @@ cargo run
 When `JIRANI_DATABASE_URL` is set, the gateway stores sync envelopes and relay
 bundles in PostgreSQL. It creates the demo tables automatically at startup.
 
-## Production Setup
+## Production Setup On Ubuntu 24.04
 
-This gateway is still a prototype, but a hosted deployment should use PostgreSQL
-instead of in-memory or JSON-file storage.
+This gateway is still a prototype, but a hosted test deployment should run with
+PostgreSQL, HTTPS, token auth, and a reverse proxy. Do not expose an in-memory or
+JSON-file demo process as community infrastructure.
 
-Required production-style environment:
+The examples below assume:
+
+- Ubuntu 24.04 LTS.
+- Domain: `gateway.example.org`.
+- App user: `jirani`.
+- App directory: `/opt/jirani-rust`.
+- Rocket listens only on local port `8080`.
+
+Replace the domain, repository URL, database password, and token before running
+these commands.
+
+### 1. Install System Packages
 
 ```bash
-JIRANI_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/jirani_gateway
-JIRANI_GATEWAY_TOKEN=use-a-long-random-token
-ROCKET_ADDRESS=0.0.0.0
+sudo apt update
+sudo apt install -y \
+  build-essential \
+  ca-certificates \
+  certbot \
+  curl \
+  git \
+  libpq-dev \
+  nginx \
+  pkg-config \
+  postgresql \
+  postgresql-contrib \
+  python3-certbot-nginx \
+  ufw
+```
+
+Install Rust with `rustup` for the deploy user or build user:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"
+rustup default stable
+rustup show
+```
+
+### 2. Create The App User And Clone The Repo
+
+```bash
+sudo useradd --system --create-home --shell /usr/sbin/nologin jirani
+sudo mkdir -p /opt/jirani-rust
+sudo chown "$USER":"$USER" /opt/jirani-rust
+
+git clone https://github.com/YOUR-ORG/jirani-rust.git /opt/jirani-rust
+cd /opt/jirani-rust
+cargo test
+cargo build --release
+
+sudo chown -R jirani:jirani /opt/jirani-rust
+```
+
+If you deploy from a private repo, clone with your normal SSH or deploy-key
+workflow, then keep the final files owned by `jirani`.
+
+### 3. Create PostgreSQL Storage
+
+```bash
+sudo -u postgres psql
+```
+
+Inside `psql`:
+
+```sql
+CREATE DATABASE jirani_gateway;
+CREATE USER jirani_gateway WITH ENCRYPTED PASSWORD 'replace-with-a-long-db-password';
+GRANT ALL PRIVILEGES ON DATABASE jirani_gateway TO jirani_gateway;
+\c jirani_gateway
+GRANT ALL ON SCHEMA public TO jirani_gateway;
+\q
+```
+
+The gateway creates its demo tables automatically at startup when
+`JIRANI_DATABASE_URL` is set.
+
+### 4. Configure Environment Variables
+
+Create an environment file readable by the service user only:
+
+```bash
+sudo install -o jirani -g jirani -m 0750 -d /etc/jirani-rust
+sudo nano /etc/jirani-rust/gateway.env
+```
+
+Example `/etc/jirani-rust/gateway.env`:
+
+```bash
+JIRANI_DATABASE_URL=postgres://jirani_gateway:replace-with-a-long-db-password@localhost:5432/jirani_gateway
+JIRANI_GATEWAY_TOKEN=replace-with-a-long-random-token
+ROCKET_ADDRESS=127.0.0.1
 ROCKET_PORT=8080
 ```
 
@@ -93,26 +180,181 @@ Optional relay encryption key publication:
 JIRANI_RELAY_PUBLIC_KEY=base64-or-pem-public-key
 ```
 
-Run:
+Lock down the environment file:
 
 ```bash
-cargo run --release
+sudo chown jirani:jirani /etc/jirani-rust/gateway.env
+sudo chmod 0640 /etc/jirani-rust/gateway.env
 ```
+
+Generate a strong demo token with:
+
+```bash
+openssl rand -base64 48
+```
+
+### 5. Create A systemd Service
+
+```bash
+sudo nano /etc/systemd/system/jirani-rust.service
+```
+
+Service file:
+
+```ini
+[Unit]
+Description=Jirani Rust Gateway
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=jirani
+Group=jirani
+WorkingDirectory=/opt/jirani-rust
+EnvironmentFile=/etc/jirani-rust/gateway.env
+ExecStart=/opt/jirani-rust/target/release/jirani-rust
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now jirani-rust
+sudo systemctl status jirani-rust
+curl http://127.0.0.1:8080/health
+```
+
+Useful logs:
+
+```bash
+sudo journalctl -u jirani-rust -f
+```
+
+### 6. Configure Nginx Reverse Proxy
+
+Create a site:
+
+```bash
+sudo nano /etc/nginx/sites-available/jirani-rust
+```
+
+Nginx config before TLS:
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name gateway.example.org;
+
+    access_log off;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Real-IP "";
+        proxy_set_header User-Agent "";
+        proxy_read_timeout 30s;
+    }
+}
+```
+
+Enable it:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/jirani-rust /etc/nginx/sites-enabled/jirani-rust
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+If the default site is still enabled and conflicts with the domain, remove that
+symlink:
+
+```bash
+sudo rm /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### 7. Enable Firewall And HTTPS With Let's Encrypt
+
+Allow SSH and web traffic:
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+sudo ufw status
+```
+
+Issue and install a Let's Encrypt certificate:
+
+```bash
+sudo certbot --nginx -d gateway.example.org
+```
+
+Certbot should update the Nginx site with TLS settings and automatic HTTP to
+HTTPS redirect. Confirm renewal:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+### 8. Smoke Test The Hosted Gateway
+
+Public health check:
+
+```bash
+curl https://gateway.example.org/health
+```
+
+Protected privacy posture check:
+
+```bash
+curl -H "Authorization: Bearer replace-with-a-long-random-token" \
+  https://gateway.example.org/privacy
+```
+
+Dashboard pages can be opened for browser testing with:
+
+```text
+https://gateway.example.org/?token=replace-with-a-long-random-token
+https://gateway.example.org/reports?token=replace-with-a-long-random-token
+https://gateway.example.org/analysis?token=replace-with-a-long-random-token
+```
+
+### Production Safety Checklist
 
 Before exposing the gateway:
 
-- terminate HTTPS at a reverse proxy or platform load balancer;
+- point Android builds at `https://gateway.example.org`, not plain HTTP;
 - set `JIRANI_GATEWAY_TOKEN` and keep it out of source control;
-- use a managed or backed-up PostgreSQL database;
+- use a managed, backed-up, or monitored PostgreSQL database;
 - disable or anonymize reverse-proxy access logs;
 - rotate demo/test tokens after presentations;
 - keep `/health` public, but protect sync, relay, analytics, and dashboard routes;
 - avoid storing raw safety reports, reporter identity, device IDs, exact GPS, or
-  exact-home details.
+  exact-home details;
+- confirm reverse-proxy logs do not preserve source IPs if gateway-operator IP
+  anonymity matters;
+- prefer a trusted relay/proxy if source-IP anonymity from the gateway operator
+  is required.
 
 For real community deployment, add community-controlled authentication,
-retention/deletion jobs, encrypted storage review, and a local safety expert
-review of PII detection before relying on this as production infrastructure.
+retention/deletion jobs, encrypted storage review, structured audit logs without
+reporter identity, and a local safety expert review of PII detection before
+relying on this as production infrastructure.
 
 ## Endpoints
 
