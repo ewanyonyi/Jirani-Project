@@ -27,7 +27,7 @@ Android uses it only as an optional minimized-envelope gateway. Reports still wo
 
 ```bash
 ./gradlew assembleDebug \
-  -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+  -PJIRANI_REMOTE_GATEWAY_URL=https://snf-6731.vlab.ac.ke \
   -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
 ```
 
@@ -41,6 +41,28 @@ cargo run
 For hosted testing, use HTTPS and a gateway token. Android will not use plain
 HTTP for non-local gateway hosts. See `docs/COMMUNICATION.md` for the full
 Android <-> Rust sync and relay contract.
+
+Current hosted test gateway:
+
+```text
+https://snf-6731.vlab.ac.ke
+```
+
+Install on a connected physical device with the hosted gateway config:
+
+```bash
+./gradlew installDebug \
+  -PJIRANI_REMOTE_GATEWAY_URL=https://snf-6731.vlab.ac.ke \
+  -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
+```
+
+Or use environment variables:
+
+```bash
+JIRANI_REMOTE_GATEWAY_URL=https://snf-6731.vlab.ac.ke \
+JIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token \
+./gradlew installDebug
+```
 
 ## Nearby Connections Sync
 
@@ -103,6 +125,7 @@ Runtime permission handling is in `SyncScreen.kt`. If the user denies the requir
 The Settings screen includes:
 
 - **Nearby sharing:** app-level toggle for Nearby discovery, advertising, and report sending. Turning it off keeps reports queued locally. Android OS permissions are still managed by Android system settings.
+- **Active relay mode:** explicit foreground-service mode for keeping relay availability on with a visible notification.
 - **Language:** current app preference for English, Swahili, Somali, or Kamba. The wider translation work is still a future phase.
 - **Theme:** Light or Dark display mode.
 - **Calculator decoy code:** local code used to return from the decoy screen.
@@ -114,10 +137,10 @@ Jirani separates **availability** from **active discovery**:
 - Availability/advertising stays on while the Sync screen is active so another nearby Jirani phone can find this phone.
 - Active discovery runs only when there is an eligible unshared report waiting, including immediately after report submission.
 - Discovery runs in 45-second bursts, then rests for 30 seconds if no connected device is found.
-- When there are no waiting reports, discovery pauses automatically.
+- When there are no waiting reports or relay bundles, discovery pauses automatically.
 - Existing Nearby connections remain open when discovery pauses, so a connected phone can still receive data.
 
-For a production background version, this should move into a foreground service with a visible notification and a stricter duty cycle.
+Active relay mode uses a foreground service with a visible notification. Production deployments should still tune stricter duty cycling for local battery constraints.
 
 ### Testing Nearby Discovery
 

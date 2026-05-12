@@ -14,11 +14,11 @@ raw survivor-centered reports.
 
 | Layer | Current Android behavior | Phase 2 relay direction |
 | :--- | :--- | :--- |
-| Local state | Kotlin Coroutines/Flow with SharedPreferences-backed demo state. | Room database for relay bundles waiting for local relay or remote sync. |
-| Nearby transport | Nearby Connections sends encrypted `WireReportPacket` values derived from `SyncEnvelope`. | Nearby Connections carries `RelayBundle` values with public headers and encrypted payloads. |
-| Remote gateway | `POST /sync/envelopes` and `GET /sync/envelopes` for minimized reports. | Add `/relay/bundles` without changing `/sync/envelopes`. |
-| Background relay | Runtime starts advertising/discovery when permissions and settings allow it. | Foreground service only when a user explicitly opts into active relay mode. |
-| Verification signal | Delivered-device counts and local content-hash checks. | Multi-peer relay trust signal based on repeated receipt of the same `bundleHash`. |
+| Local state | Kotlin Coroutines/Flow with SharedPreferences-backed demo state plus Room-backed relay bundle persistence. | Expand Room to all local records and add encrypted-at-rest storage before production deployment. |
+| Nearby transport | Nearby Connections sends encrypted `WireReportPacket` values derived from `SyncEnvelope`; Android can also carry `RelayBundle` values with public headers and encrypted payloads. | Replace demo relay keying with community-controlled key management and stronger verification. |
+| Remote gateway | `POST /sync/envelopes` and `GET /sync/envelopes` for minimized reports; Android has client support for `/relay/bundles` and `/relay/public-key`. | Keep `/relay/bundles` separate from `/sync/envelopes` and use configured gateway keys for hosted relay encryption. |
+| Background relay | Runtime starts advertising/discovery when permissions and settings allow it; active relay mode can run as a foreground service with a visible notification. | Add stricter production duty cycling and notification-permission education. |
+| Verification signal | Delivered-device counts, local content-hash checks, and Relay Shield peer-count labels for repeated `bundleHash` receipts. | Tune community language and thresholds with field testing. |
 
 ## 2. Architecture: Aware Relay DTN
 
@@ -63,9 +63,13 @@ Android should implement:
 - a user-visible relay toggle, enabled by default only when appropriate for the
   community demo and platform permissions.
 
-The Android app now includes relay-bundle domain models and deterministic hash
-helpers for the proposed contract. Transport wiring, Room persistence,
-foreground service behavior, and public-header inbox UI remain future work.
+The Android app now includes relay-bundle domain models, deterministic hash
+helpers, Nearby relay-bundle handoff, Room-backed relay queue state, remote
+relay-bundle client support, local deduplication by `bundleHash`, multi-peer
+Relay Shield labels, foreground active relay mode, and gateway public-key based
+payload encryption when `/relay/public-key` returns a valid RSA public key.
+Full app-wide Room migration, encrypted-at-rest Room storage, and production
+key lifecycle/rotation policy remain future work.
 
 ### Android UI Concepts
 
@@ -143,6 +147,12 @@ Android emulator default:
 http://10.0.2.2:8080
 ```
 
+Hosted test gateway:
+
+```text
+https://snf-6731.vlab.ac.ke
+```
+
 Rust server:
 
 ```bash
@@ -157,14 +167,14 @@ Gradle property:
 
 ```bash
 ./gradlew assembleDebug \
-  -PJIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+  -PJIRANI_REMOTE_GATEWAY_URL=https://snf-6731.vlab.ac.ke \
   -PJIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token
 ```
 
 Environment variable:
 
 ```bash
-JIRANI_REMOTE_GATEWAY_URL=https://your-test-gateway.example \
+JIRANI_REMOTE_GATEWAY_URL=https://snf-6731.vlab.ac.ke \
 JIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token \
 ./gradlew assembleDebug
 ```
@@ -172,13 +182,19 @@ JIRANI_REMOTE_GATEWAY_TOKEN=change-this-demo-token \
 If the Rust server does not set `JIRANI_GATEWAY_TOKEN`, omit
 `JIRANI_REMOTE_GATEWAY_TOKEN` and Android will not send an auth header.
 
+As of May 12, 2026, `https://snf-6731.vlab.ac.ke/health` responds successfully
+and reports that the gateway does not store network identity. The
+`/relay/public-key` endpoint currently returns `404 Not Found`, which means
+`JIRANI_RELAY_PUBLIC_KEY` is not configured there yet; Android will fall back to
+the local demo relay key until that hosted key is published.
+
 Use HTTPS for hosted testing. The Android manifest permits cleartext only for
 emulator/local development hosts through `network_security_config.xml`, and
 Android rejects non-HTTPS gateway URLs outside local development hosts
 (`10.0.2.2`, `localhost`, `127.0.0.1`).
 
-Relay support should be integrated as a separate API surface instead of changing
-the existing sync envelope contract:
+Relay support is integrated as a separate API surface instead of changing the
+existing sync envelope contract. The companion Rust gateway exposes:
 
 - `POST /relay/bundles`: accept privacy-safe relay bundles from trusted Android
   clients.
@@ -232,8 +248,9 @@ gateway contract can remain stable.
 ```
 
 Hashing must use a deterministic representation shared by Android and Rust. The
-Android model lives in `RelayBundleModels.kt`. If relay endpoints are
-implemented, update this document,
+Android model lives in `RelayBundleModels.kt`, and Android-side JSON/Nearby
+serialization lives in the sync package. If companion Rust relay endpoints are
+implemented or changed, update this document,
 `/home/ewanyonyi/dev/jirani-rust/docs/ANDROID_INTEGRATION.md`, and Rust
 integration tests together.
 
@@ -253,9 +270,10 @@ alertType|generalArea|timeWindow|riskLevel|message|verificationStatus|audienceTi
 - The public header must remain minimized and should not include names, phone
   numbers, exact homes, exact GPS coordinates, or household identifiers.
 - The encrypted payload is opaque to this gateway by default.
-- The current Android relay encryption helper uses a demo key for local packet
-  transfer. Production relay bundles need community-controlled key management or
-  gateway public-key retrieval before private payloads are used.
+- The Android relay encryption helper uses the configured gateway RSA public key
+  from `/relay/public-key` when available. Local/demo runs without a valid public
+  key still fall back to a demo key for testability, so hosted deployments should
+  configure and rotate `JIRANI_RELAY_PUBLIC_KEY`.
 - Direct HTTPS upload still exposes source IP at the network layer. Hosted
   deployments should use HTTPS, token auth, durable storage, and anonymized
   reverse-proxy logs.

@@ -18,6 +18,7 @@ import com.google.android.gms.nearby.connection.PayloadCallback
 import com.google.android.gms.nearby.connection.PayloadTransferUpdate
 import com.google.android.gms.nearby.connection.Strategy
 import com.jirani.app.data.local.NearbyJiraniDevice
+import com.jirani.app.data.local.RelayBundle
 import com.jirani.app.data.local.WireReportPacket
 import com.jirani.app.data.local.SyncTransport
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,9 @@ class NearbyConnectionsScanner(
     private val onReportPacketReceived: (WireReportPacket, String) -> Unit = { _, _ -> },
     private val onReportPacketsSent: (List<WireReportPacket>) -> Unit = {},
     private val onReportPacketsFailed: (List<WireReportPacket>) -> Unit = {},
+    private val onRelayBundleReceived: (RelayBundle, String) -> Unit = { _, _ -> },
+    private val onRelayBundlesSent: (List<RelayBundle>) -> Unit = {},
+    private val onRelayBundlesFailed: (List<RelayBundle>) -> Unit = {},
     private val hasWaitingReports: () -> Boolean = { false },
 ) {
     private val appContext = context.applicationContext
@@ -118,13 +122,20 @@ class NearbyConnectionsScanner(
     private val payloadCallback = object : PayloadCallback() {
         override fun onPayloadReceived(endpointId: String, payload: Payload) {
             val bytes = payload.asBytes() ?: return
-            val packet = NearbyReportPacketCodec.decode(bytes) ?: return
             val fromAlias = connected[endpointId]?.deviceAlias
                 ?: discovered[endpointId]?.deviceAlias
                 ?: "Nearby Jirani device"
-            Log.d(Tag, "Received payload from endpoint=$endpointId alias=$fromAlias bytes=${bytes.size}")
-            onReportPacketReceived(packet, fromAlias)
-            _scan.update { it.copy(statusMessage = "An anonymized report was received from $fromAlias.") }
+            val packet = NearbyReportPacketCodec.decode(bytes)
+            if (packet != null) {
+                Log.d(Tag, "Received report payload from endpoint=$endpointId alias=$fromAlias bytes=${bytes.size}")
+                onReportPacketReceived(packet, fromAlias)
+                _scan.update { it.copy(statusMessage = "An anonymized report was received from $fromAlias.") }
+                return
+            }
+            val bundle = NearbyRelayBundleCodec.decode(bytes) ?: return
+            Log.d(Tag, "Received relay bundle from endpoint=$endpointId alias=$fromAlias bytes=${bytes.size}")
+            onRelayBundleReceived(bundle, fromAlias)
+            _scan.update { it.copy(statusMessage = "A relay alert was received from $fromAlias.") }
         }
 
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) = Unit
@@ -255,6 +266,39 @@ class NearbyConnectionsScanner(
                 }
         }
         _scan.update { it.copy(statusMessage = "Sent ${packets.size} anonymized report packet(s).") }
+    }
+
+    fun sendRelayBundles(bundles: List<RelayBundle>) {
+        if (bundles.isEmpty()) return
+        if (connected.isEmpty()) {
+            _scan.update { it.copy(statusMessage = "Connect to a nearby Jirani device before relaying bundles.") }
+            return
+        }
+
+        bundles.forEachIndexed { index, bundle ->
+            val packetId = "relay-${bundle.bundleHash}"
+            if (!inFlightPacketIds.add(packetId)) {
+                Log.d(Tag, "Skipping duplicate in-flight relay bundle=${bundle.bundleHash}")
+                return@forEachIndexed
+            }
+            val endpointId = connected.keys.elementAt(index % connected.size)
+            val bytes = NearbyRelayBundleCodec.encode(bundle)
+            Log.d(Tag, "Sending relay bundle to endpoint=$endpointId bytes=${bytes.size}")
+            client.sendPayload(endpointId, Payload.fromBytes(bytes))
+                .addOnSuccessListener {
+                    inFlightPacketIds.remove(packetId)
+                    onRelayBundlesSent(listOf(bundle))
+                    _scan.update { scan -> scan.copy(statusMessage = "Relayed public safety bundle to nearby device.") }
+                }
+                .addOnFailureListener { error ->
+                    inFlightPacketIds.remove(packetId)
+                    onRelayBundlesFailed(listOf(bundle))
+                    Log.w(Tag, "Relay bundle send failed endpoint=$endpointId", error)
+                    _scan.update { scan ->
+                        scan.copy(statusMessage = error.localizedMessage ?: "Nearby relay bundle send failed.")
+                    }
+                }
+        }
     }
 
     private fun requestConnection(endpointId: String) {

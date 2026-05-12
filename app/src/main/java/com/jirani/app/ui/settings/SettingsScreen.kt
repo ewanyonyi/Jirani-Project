@@ -109,6 +109,30 @@ fun SettingsScreen(
             }
         }
 
+        SettingsCard(
+            iconRes = R.drawable.ic_mesh_status,
+            title = "Active relay mode",
+            subtitle = "Keep nearby relay available with a foreground notification.",
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = if (uiState.activeRelayModeEnabled) "Active relay is on" else "Active relay is off",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Switch(
+                    checked = uiState.activeRelayModeEnabled,
+                    onCheckedChange = viewModel::updateActiveRelayMode,
+                )
+            }
+        }
+
         SectionTitle("Regional Settings")
         SettingsCard(
             iconRes = R.drawable.ic_language,

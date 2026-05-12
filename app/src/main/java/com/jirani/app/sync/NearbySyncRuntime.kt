@@ -35,7 +35,13 @@ object NearbySyncRuntime {
             onReportPacketReceived = LocalFirstUiStore::receiveNearbyReportPacket,
             onReportPacketsSent = LocalFirstUiStore::markNearbyReportPacketsSent,
             onReportPacketsFailed = LocalFirstUiStore::markNearbyReportPacketsFailed,
-            hasWaitingReports = { LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() },
+            onRelayBundleReceived = LocalFirstUiStore::receiveRelayBundle,
+            onRelayBundlesSent = LocalFirstUiStore::markNearbyRelayBundlesSent,
+            onRelayBundlesFailed = LocalFirstUiStore::markNearbyRelayBundlesFailed,
+            hasWaitingReports = {
+                LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() ||
+                    LocalFirstUiStore.network.value.pendingRelayBundles.isNotEmpty()
+            },
         )
         started = true
         bindRuntime()
@@ -56,7 +62,10 @@ object NearbySyncRuntime {
 
         val currentScanner = requireScanner()
         currentScanner.makeAvailable()
-        if (LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty()) {
+        if (
+            LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() ||
+            LocalFirstUiStore.network.value.pendingRelayBundles.isNotEmpty()
+        ) {
             currentScanner.resumeDiscovery()
         }
     }
@@ -93,10 +102,12 @@ object NearbySyncRuntime {
 
         scope.launch {
             combine(LocalFirstUiStore.network, currentScanner.scan) { network, scan ->
-                network.pendingEnvelopes.isNotEmpty() to scan.connectedDevices.isNotEmpty()
+                (network.pendingEnvelopes.isNotEmpty() || network.pendingRelayBundles.isNotEmpty()) to
+                    scan.connectedDevices.isNotEmpty()
             }.collect { (hasWaitingReports, hasConnectedDevices) ->
                 if (hasWaitingReports && hasConnectedDevices) {
                     currentScanner.sendReportPackets(LocalFirstUiStore.createNearbyReportPacketsForNextReport())
+                    currentScanner.sendRelayBundles(LocalFirstUiStore.createNearbyRelayBundlesForNextBundle())
                 }
             }
         }
@@ -105,6 +116,7 @@ object NearbySyncRuntime {
             combine(LocalFirstUiStore.network, currentScanner.scan) { network, scan ->
                 NetworkScanState(
                     hasWaitingReports = network.pendingEnvelopes.isNotEmpty(),
+                    hasWaitingRelayBundles = network.pendingRelayBundles.isNotEmpty(),
                     hasConnectedDevices = scan.connectedDevices.isNotEmpty(),
                     scanning = scan.scanning,
                     advertising = scan.advertising,
@@ -122,15 +134,16 @@ object NearbySyncRuntime {
                 if (!state.advertising) {
                     currentScanner.makeAvailable()
                 }
-                if (!state.hasWaitingReports && state.scanning) {
+                if (!state.hasWaitingReports && !state.hasWaitingRelayBundles && state.scanning) {
                     currentScanner.pauseDiscovery()
                     return@collectLatest
                 }
-                if (state.hasWaitingReports && !state.hasConnectedDevices) {
+                if ((state.hasWaitingReports || state.hasWaitingRelayBundles) && !state.hasConnectedDevices) {
                     currentScanner.resumeDiscovery()
                     delay(DiscoveryBurstMillis)
                     if (
-                        LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() &&
+                        (LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() ||
+                            LocalFirstUiStore.network.value.pendingRelayBundles.isNotEmpty()) &&
                         currentScanner.scan.value.connectedDevices.isEmpty()
                     ) {
                         currentScanner.pauseDiscovery()
@@ -168,6 +181,7 @@ object NearbySyncRuntime {
 
     private data class NetworkScanState(
         val hasWaitingReports: Boolean,
+        val hasWaitingRelayBundles: Boolean,
         val hasConnectedDevices: Boolean,
         val scanning: Boolean,
         val advertising: Boolean,

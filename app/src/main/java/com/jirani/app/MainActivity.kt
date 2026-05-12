@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isFinishing) {
+        if (isFinishing && !LocalFirstUiStore.isActiveRelayModeEnabled()) {
             NearbySyncRuntime.stop()
         }
     }

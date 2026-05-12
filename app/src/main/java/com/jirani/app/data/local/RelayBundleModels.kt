@@ -1,6 +1,16 @@
 package com.jirani.app.data.local
 
+import java.security.MessageDigest
+import java.security.PublicKey
+import java.security.SecureRandom
+import java.security.spec.X509EncodedKeySpec
 import java.time.Instant
+import java.util.Base64
+import javax.crypto.Cipher
+import java.security.KeyFactory
+import javax.crypto.KeyGenerator
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 data class RelayPublicHeader(
     val alertType: String,
@@ -22,7 +32,47 @@ data class RelayBundle(
     val expiresAtEpochSeconds: Long,
 )
 
+data class RelayBundleCarrierItem(
+    val bundle: RelayBundle,
+    val deliveredDeviceAliases: List<String> = emptyList(),
+    val sendingDeviceAliases: List<String> = emptyList(),
+)
+
+data class RelayBundleInboxItem(
+    val bundle: RelayBundle,
+    val receivedFromAliases: List<String> = emptyList(),
+) {
+    val peerCount: Int = receivedFromAliases.distinct().size
+    val verificationLabel: String =
+        if (peerCount >= 2) "Corroborated by nearby peers" else "Pending local verification"
+}
+
 object RelayBundlePolicy {
+    private const val AesGcmTransformation = "AES/GCM/NoPadding"
+    private const val RsaOaepTransformation = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding"
+    private const val GcmTagBits = 128
+    private const val IvByteSize = 12
+    @Volatile
+    private var gatewayPublicKey: PublicKey? = null
+
+    fun configureGatewayPublicKey(encodedPublicKey: String?): Boolean {
+        val keyText = encodedPublicKey?.trim().orEmpty()
+        if (keyText.isBlank()) {
+            gatewayPublicKey = null
+            return false
+        }
+        val body = keyText
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .replace("\\s".toRegex(), "")
+        val publicKey = runCatching {
+            val bytes = Base64.getDecoder().decode(body)
+            KeyFactory.getInstance("RSA").generatePublic(X509EncodedKeySpec(bytes))
+        }.getOrNull() ?: return false
+        gatewayPublicKey = publicKey
+        return true
+    }
+
     fun createBundle(
         publicHeader: RelayPublicHeader,
         encryptedPayload: String,
@@ -39,6 +89,13 @@ object RelayBundlePolicy {
             expiresAtEpochSeconds = expiresAtEpochSeconds,
         )
     }
+
+    fun createBundleFromEnvelope(envelope: SyncEnvelope): RelayBundle =
+        createBundle(
+            publicHeader = publicHeaderFromEnvelope(envelope),
+            encryptedPayload = encryptPayload(envelope.payload),
+            expiresAtEpochSeconds = envelope.expiresAtEpochSeconds,
+        )
 
     fun publicHeaderFromEnvelope(envelope: SyncEnvelope): RelayPublicHeader =
         RelayPublicHeader(
@@ -89,6 +146,52 @@ object RelayBundlePolicy {
             publicHeader.sensitivity.name,
             payloadHash,
         ).joinToString("|")
+
+    private fun encryptPayload(payload: SanitizedReportPayload): String {
+        val clearText = listOf(
+            payload.reportType,
+            payload.generalArea,
+            payload.timeWindow,
+            payload.submittedAtEpochSeconds.toString(),
+            payload.observedRisk,
+            payload.verificationStatus.name,
+            payload.sensitivity.name,
+        ).joinToString("\u001F")
+        gatewayPublicKey?.let { publicKey -> return encryptPayloadWithGatewayKey(clearText, publicKey) }
+
+        val iv = ByteArray(IvByteSize)
+        SecureRandom().nextBytes(iv)
+        val cipher = Cipher.getInstance(AesGcmTransformation)
+        cipher.init(Cipher.ENCRYPT_MODE, demoRelayKey(), GCMParameterSpec(GcmTagBits, iv))
+        val cipherText = cipher.doFinal(clearText.toByteArray())
+        return Base64.getEncoder().encodeToString(iv + cipherText)
+    }
+
+    private fun demoRelayKey(): SecretKeySpec {
+        val keyBytes = MessageDigest.getInstance("SHA-256")
+            .digest("jirani-demo-relay-bundle-key".toByteArray())
+        return SecretKeySpec(keyBytes, "AES")
+    }
+
+    private fun encryptPayloadWithGatewayKey(clearText: String, publicKey: PublicKey): String {
+        val aesKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        val iv = ByteArray(IvByteSize)
+        SecureRandom().nextBytes(iv)
+        val payloadCipher = Cipher.getInstance(AesGcmTransformation)
+        payloadCipher.init(Cipher.ENCRYPT_MODE, aesKey, GCMParameterSpec(GcmTagBits, iv))
+        val cipherText = payloadCipher.doFinal(clearText.toByteArray())
+
+        val keyCipher = Cipher.getInstance(RsaOaepTransformation)
+        keyCipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        val wrappedKey = keyCipher.doFinal(aesKey.encoded)
+
+        return listOf(
+            "\"alg\":\"RSA-OAEP-SHA256+A256GCM\"",
+            "\"wrappedKey\":\"${Base64.getEncoder().encodeToString(wrappedKey)}\"",
+            "\"iv\":\"${Base64.getEncoder().encodeToString(iv)}\"",
+            "\"ciphertext\":\"${Base64.getEncoder().encodeToString(cipherText)}\"",
+        ).joinToString(prefix = "{", postfix = "}")
+    }
 
     private fun riskLevel(sensitivity: ReportSensitivity): String = when (sensitivity) {
         ReportSensitivity.Protection -> "Elevated"
