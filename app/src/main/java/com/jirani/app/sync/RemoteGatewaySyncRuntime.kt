@@ -38,7 +38,10 @@ object RemoteGatewaySyncRuntime {
         }
         scope.launch {
             LocalFirstUiStore.network.collect { snapshot ->
-                if (snapshot.remoteGatewayEnvelopes.isNotEmpty()) {
+                if (
+                    snapshot.remoteGatewayEnvelopes.isNotEmpty() ||
+                    snapshot.remoteRelayBundles.isNotEmpty()
+                ) {
                     uploadPendingReports()
                 }
             }
