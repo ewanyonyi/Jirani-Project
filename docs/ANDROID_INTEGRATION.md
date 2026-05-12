@@ -54,6 +54,8 @@ Local demos can run without auth. Hosted test servers should set:
 
 ```bash
 JIRANI_GATEWAY_TOKEN=change-this-demo-token \
+JIRANI_DASHBOARD_USERS='elder_osf:sha256$120000$...$...' \
+JIRANI_SESSION_SECRET=replace-with-a-long-random-session-secret \
 JIRANI_DATABASE_URL=postgres://jirani:jirani_dev_password@localhost:5432/jirani_gateway \
 cargo run
 ```
@@ -63,7 +65,31 @@ For lightweight demos without PostgreSQL, `JIRANI_STORE_PATH` and
 
 Android sends `Authorization: Bearer <token>` when built with `JIRANI_REMOTE_GATEWAY_TOKEN`.
 
-Dashboard pages also accept `?token=<token>` for simple browser testing. Keep this token private, rotate it after demos, and do not treat this as production-grade authentication.
+Dashboard pages use username/password login at `/login` when `JIRANI_DASHBOARD_USERS`
+is configured. Keep dashboard credentials private, rotate them after demos, and
+do not treat this as production-grade identity or authorization.
+
+Create one dashboard password hash per authorized OSF staff member or community
+elder:
+
+```bash
+cargo run -- hash-dashboard-password 'elder-development-password'
+cargo run -- hash-dashboard-password 'osf-development-password'
+```
+
+For development, start Rocket with the generated hashes:
+
+```bash
+JIRANI_GATEWAY_TOKEN=change-this-demo-token \
+JIRANI_DASHBOARD_USERS='elder_osf:sha256$120000$...$...,osf_staff:sha256$120000$...$...' \
+JIRANI_SESSION_SECRET=local-dev-session-secret \
+cargo run
+```
+
+For production, generate long unique passwords, store only the generated hashes
+and `JIRANI_SESSION_SECRET` in the server's secret manager or process
+environment, and give each reviewer only their own username and temporary
+password. Rotate the affected user's hash when access changes.
 
 ## Anonymity Limits
 

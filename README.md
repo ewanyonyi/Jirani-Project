@@ -367,12 +367,12 @@ curl -H "Authorization: Bearer replace-with-a-long-random-token" \
   https://gateway.example.org/relay/public-key
 ```
 
-Dashboard pages can be opened for browser testing with:
+Dashboard users can sign in for browser testing with:
 
 ```text
-https://gateway.example.org/?token=replace-with-a-long-random-token
-https://gateway.example.org/reports?token=replace-with-a-long-random-token
-https://gateway.example.org/analysis?token=replace-with-a-long-random-token
+https://gateway.example.org/login
+https://gateway.example.org/reports
+https://gateway.example.org/analysis
 ```
 
 ### 9. Build Android For The Hosted Gateway
@@ -437,23 +437,79 @@ relying on this as production infrastructure.
 
 ## Dashboard And Auth
 
-For local demos, the gateway is open by default. For a hosted test server, set a shared token at runtime:
+For local demos, the gateway is open by default. For hosted test servers, keep
+the Android/API token separate from human dashboard access:
 
 ```bash
 JIRANI_GATEWAY_TOKEN=change-this-demo-token \
+JIRANI_DASHBOARD_USERS='elder_osf:sha256$120000$...$...' \
+JIRANI_SESSION_SECRET=replace-with-a-long-random-session-secret \
 JIRANI_DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/jirani_gateway \
 cargo run
 ```
 
 For release builds, `cargo build --release` only compiles the binary. Set
-`JIRANI_GATEWAY_TOKEN` in the shell, process manager, container secret, or
-systemd `EnvironmentFile` that starts `./target/release/jirani-rust`.
+`JIRANI_GATEWAY_TOKEN`, `JIRANI_DASHBOARD_USERS`, and `JIRANI_SESSION_SECRET`
+in the shell, process manager, container secret, or systemd `EnvironmentFile`
+that starts `./target/release/jirani-rust`.
 
 When `JIRANI_GATEWAY_TOKEN` is set:
 
 - API clients must send `Authorization: Bearer change-this-demo-token`.
-- Browser dashboard pages can be opened with `?token=change-this-demo-token`.
 - `GET /health` remains public for simple uptime checks.
+
+When `JIRANI_DASHBOARD_USERS` is set:
+
+- Browser users sign in at `/login` with an authorized username and password.
+- `/`, `/reports`, `/analysis`, and `/privacy-page` require a valid dashboard
+  session cookie.
+- Dashboard passwords are configured as salted hashes, not plaintext.
+
+### Create Dashboard Users For Development
+
+Generate one password hash per authorized OSF staff member or community elder:
+
+```bash
+cargo run -- hash-dashboard-password 'elder-development-password'
+cargo run -- hash-dashboard-password 'osf-development-password'
+```
+
+Copy each printed hash into `JIRANI_DASHBOARD_USERS` as a comma-separated
+`username:hash` list, then start the local gateway:
+
+```bash
+JIRANI_GATEWAY_TOKEN=change-this-demo-token \
+JIRANI_DASHBOARD_USERS='elder_osf:sha256$120000$...$...,osf_staff:sha256$120000$...$...' \
+JIRANI_SESSION_SECRET=local-dev-session-secret \
+cargo run
+```
+
+Open `http://localhost:8080/login` and sign in with the matching username and
+plaintext password. Do not commit the plaintext password, generated hash, or
+session secret.
+
+### Create Dashboard Users For Production
+
+On the deployment host or a trusted admin machine, generate strong unique
+passwords for each person and produce a hash for each one:
+
+```bash
+cargo run --release -- hash-dashboard-password 'long-unique-elder-password'
+cargo run --release -- hash-dashboard-password 'long-unique-osf-password'
+```
+
+Store only the hashes and a long random session secret in the production shell,
+container secret, or systemd `EnvironmentFile`:
+
+```bash
+JIRANI_GATEWAY_TOKEN=replace-with-a-long-random-api-token
+JIRANI_DASHBOARD_USERS='elder_wanjiku:sha256$120000$...$...,osf_amina:sha256$120000$...$...'
+JIRANI_SESSION_SECRET=replace-with-a-different-long-random-session-secret
+```
+
+Give each authorized person only their own username and temporary password, ask
+them to change it through your operational process, and rotate the affected hash
+if a person leaves the review group or a credential is exposed.
 
 Dashboard pages:
 

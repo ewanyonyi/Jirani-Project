@@ -89,7 +89,7 @@ fn dashboard_pages_render_in_open_demo_mode() {
     let response = client.get("/").dispatch();
     assert_eq!(response.status(), Status::Ok);
     let body = response.into_string().expect("dashboard body");
-    assert!(body.contains("Jirani report sync"));
+    assert!(body.contains("Review minimized report signals"));
 
     let response = client.get("/analysis").dispatch();
     assert_eq!(response.status(), Status::Ok);
@@ -98,7 +98,7 @@ fn dashboard_pages_render_in_open_demo_mode() {
 }
 
 #[test]
-fn token_auth_blocks_sync_and_dashboard_when_enabled() {
+fn token_auth_blocks_sync_when_enabled() {
     let client = Client::tracked(jirani_rust::rocket_with_config(GatewayConfig::with_token(
         "test-token",
     )))
@@ -115,17 +115,6 @@ fn token_auth_blocks_sync_and_dashboard_when_enabled() {
         Status::Unauthorized,
     );
 
-    assert_eq!(client.get("/").dispatch().status(), Status::Ok);
-    assert_eq!(
-        client.get("/?token=test-token").dispatch().status(),
-        Status::Ok
-    );
-    let access_page = client
-        .get("/")
-        .dispatch()
-        .into_string()
-        .expect("access page body");
-    assert!(access_page.contains("Jirani gateway access"));
     assert_eq!(
         client
             .post("/sync/envelopes")
@@ -138,6 +127,65 @@ fn token_auth_blocks_sync_and_dashboard_when_enabled() {
             .dispatch()
             .status(),
         Status::Created,
+    );
+}
+
+#[test]
+fn dashboard_username_password_auth_protects_report_pages() {
+    let client = Client::tracked(jirani_rust::rocket_with_config(
+        GatewayConfig::open()
+            .with_dashboard_session_secret("test-session-secret")
+            .with_dashboard_user("elder_osf", "correct horse battery"),
+    ))
+    .expect("valid rocket instance");
+
+    let response = client.get("/").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert!(response
+        .into_string()
+        .expect("dashboard login body")
+        .contains("Jirani dashboard access"));
+    assert_eq!(
+        client.get("/reports").dispatch().status(),
+        Status::Unauthorized
+    );
+
+    let response = client.get("/login").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert!(response
+        .into_string()
+        .expect("login body")
+        .contains("Jirani dashboard access"));
+
+    let response = client
+        .post("/login")
+        .header(ContentType::Form)
+        .body("username=elder_osf&password=wrong")
+        .dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert!(response
+        .into_string()
+        .expect("failed login body")
+        .contains("not accepted"));
+
+    let response = client
+        .post("/login")
+        .header(ContentType::Form)
+        .body("username=elder_osf&password=correct%20horse%20battery")
+        .dispatch();
+    assert_eq!(response.status(), Status::SeeOther);
+
+    let response = client.get("/reports").dispatch();
+    assert_eq!(response.status(), Status::Ok);
+    assert!(response
+        .into_string()
+        .expect("reports body")
+        .contains("Accepted minimized reports"));
+
+    assert_eq!(client.post("/logout").dispatch().status(), Status::SeeOther);
+    assert_eq!(
+        client.get("/analysis").dispatch().status(),
+        Status::Unauthorized
     );
 }
 
