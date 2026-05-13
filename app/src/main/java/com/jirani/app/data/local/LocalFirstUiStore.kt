@@ -1,7 +1,10 @@
 package com.jirani.app.data.local
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
+import androidx.core.content.ContextCompat
+import com.jirani.app.sync.RelayForegroundService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,7 +49,7 @@ data class SubmittedReportStatus(
     val maxDevices: Int,
     val stale: Boolean,
     val status: String,
-    val remoteGatewayStatus: String = "Waiting for Rust gateway",
+    val remoteGatewayStatus: String = "Waiting for Jirani Server",
 )
 
 data class NetworkSnapshot(
@@ -56,8 +59,11 @@ data class NetworkSnapshot(
     val queueItems: List<SyncQueueItem> = emptyList(),
     val pendingEnvelopes: List<SyncEnvelope> = emptyList(),
     val remoteGatewayEnvelopes: List<SyncEnvelope> = emptyList(),
+    val pendingRelayBundles: List<RelayBundleCarrierItem> = emptyList(),
+    val remoteRelayBundles: List<RelayBundle> = emptyList(),
     val trustedNearbyDevices: List<NearbyJiraniDevice> = emptyList(),
     val receivedReports: List<ReceivedReportItem> = emptyList(),
+    val receivedRelayBundles: List<RelayBundleInboxItem> = emptyList(),
     val submittedReports: List<SubmittedReportStatus> = emptyList(),
     val lastTransferMessage: String? = null,
 )
@@ -70,6 +76,7 @@ data class ReportSubmissionReceipt(
 data class SecuritySettings(
     val discreetCode: String = "2468=",
     val nearbySharingEnabled: Boolean = true,
+    val activeRelayModeEnabled: Boolean = false,
     val language: AppLanguage = AppLanguage.English,
     val themeMode: AppThemeMode = AppThemeMode.Light,
 )
@@ -91,6 +98,7 @@ object LocalFirstUiStore {
     private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var preferences: SharedPreferences? = null
     private var persistenceStarted = false
+    private var appContext: Context? = null
 
     private val _agreements = MutableStateFlow(
         listOf(
@@ -127,6 +135,8 @@ object LocalFirstUiStore {
 
     fun initializePersistence(context: Context) {
         if (persistenceStarted) return
+        appContext = context.applicationContext
+        RelayBundleRoomStore.initialize(context)
         preferences = context.applicationContext.getSharedPreferences(StoreName, Context.MODE_PRIVATE)
         preferences?.getString(NetworkSnapshotKey, null)?.let { encoded ->
             runCatching { decodeNetworkSnapshot(encoded) }.getOrNull()?.let { restored ->
@@ -139,11 +149,32 @@ object LocalFirstUiStore {
             }
         }
         persistenceStarted = true
+        if (_securitySettings.value.activeRelayModeEnabled) {
+            startRelayForegroundService()
+        }
+        persistenceScope.launch {
+            val relaySnapshot = RelayBundleRoomStore.load()
+            _network.update { current ->
+                current.copy(
+                    pendingRelayBundles = mergeCarrierItems(
+                        current.pendingRelayBundles,
+                        relaySnapshot.pendingRelayBundles,
+                    ),
+                    remoteRelayBundles = (current.remoteRelayBundles + relaySnapshot.remoteRelayBundles)
+                        .distinctBy { it.bundleHash },
+                    receivedRelayBundles = mergeInboxItems(
+                        current.receivedRelayBundles,
+                        relaySnapshot.receivedRelayBundles,
+                    ),
+                )
+            }
+        }
         persistenceScope.launch {
             _network.drop(1).collect { snapshot ->
                 preferences?.edit()
                     ?.putString(NetworkSnapshotKey, encodeNetworkSnapshot(snapshot))
                     ?.apply()
+                RelayBundleRoomStore.save(snapshot)
             }
         }
         persistenceScope.launch {
@@ -200,6 +231,9 @@ object LocalFirstUiStore {
         } else {
             emptyList()
         }
+        val relayBundle = runCatching { RelayBundlePolicy.createBundleFromEnvelope(envelope) }
+            .getOrNull()
+            ?.takeIf { RelayBundlePolicy.validateForRelay(it) == null }
         _network.update {
             val nextItem = SyncQueueItem(
                 id = envelope.envelopeId,
@@ -211,6 +245,12 @@ object LocalFirstUiStore {
                 queueItems = listOf(nextItem) + it.queueItems,
                 pendingEnvelopes = listOf(envelope) + it.pendingEnvelopes,
                 remoteGatewayEnvelopes = remoteGatewayEnvelopes + it.remoteGatewayEnvelopes,
+                pendingRelayBundles = relayBundle?.let { bundle ->
+                    listOf(RelayBundleCarrierItem(bundle)) + it.pendingRelayBundles
+                } ?: it.pendingRelayBundles,
+                remoteRelayBundles = relayBundle?.let { bundle ->
+                    listOf(bundle) + it.remoteRelayBundles
+                } ?: it.remoteRelayBundles,
                 submittedReports = listOf(envelope.toSubmittedStatus(nextItem.status)) + it.submittedReports,
             )
         }
@@ -223,10 +263,13 @@ object LocalFirstUiStore {
         details: String,
     ): ReportSubmissionReceipt {
         val envelope = saveSafetyReport(reportType, generalLocation, details)
-        val message = if (_network.value.trustedNearbyDevices.isNotEmpty()) {
-            "Report submitted. Nearby delivery is starting."
-        } else {
-            "Report submitted. No trusted nearby device available yet; scanning will keep it ready to send."
+        val message = when {
+            !envelope.canUseNearbyConnections() ->
+                "Report submitted. This private safety report stays local; use explicit private handoff only."
+            _network.value.trustedNearbyDevices.isNotEmpty() ->
+                "Report submitted. Nearby delivery is starting."
+            else ->
+                "Report submitted. No trusted nearby device available yet; scanning will keep it ready to send."
         }
         _network.update { it.copy(lastTransferMessage = message) }
         return ReportSubmissionReceipt(
@@ -276,6 +319,28 @@ object LocalFirstUiStore {
         _network.value.remoteGatewayEnvelopes
             .filter { RemoteGatewaySyncPolicy.canUploadToRemoteGateway(it) }
 
+    fun pendingRemoteRelayBundles(): List<RelayBundle> =
+        _network.value.remoteRelayBundles
+            .filter { RelayBundlePolicy.validateForRelay(it) == null }
+
+    fun hasPendingNearbyReports(): Boolean =
+        _network.value.pendingEnvelopes.any { it.canUseNearbyConnections() }
+
+    @Synchronized
+    fun markRemoteRelayBundleUploadSucceeded(bundleHash: String) {
+        _network.update { current ->
+            current.copy(
+                remoteRelayBundles = current.remoteRelayBundles.filterNot { it.bundleHash == bundleHash },
+                lastTransferMessage = "A relay bundle was uploaded to the Jirani Server.",
+            )
+        }
+    }
+
+    @Synchronized
+    fun markRemoteRelayBundleUploadFailed(message: String) {
+        _network.update { it.copy(lastTransferMessage = message) }
+    }
+
     @Synchronized
     fun markRemoteGatewayUploadSucceeded(envelopeId: String) {
         _network.update { current ->
@@ -283,12 +348,12 @@ object LocalFirstUiStore {
                 remoteGatewayEnvelopes = current.remoteGatewayEnvelopes.filterNot { it.envelopeId == envelopeId },
                 submittedReports = current.submittedReports.map { report ->
                     if (report.envelopeId == envelopeId) {
-                        report.copy(remoteGatewayStatus = "Uploaded to Rust gateway")
+                        report.copy(remoteGatewayStatus = "Uploaded to Jirani Server")
                     } else {
                         report
                     }
                 },
-                lastTransferMessage = "An anonymized report was uploaded to the Rust gateway.",
+                lastTransferMessage = "An anonymized report was uploaded to the Jirani Server.",
             )
         }
     }
@@ -299,7 +364,7 @@ object LocalFirstUiStore {
             current.copy(
                 submittedReports = current.submittedReports.map { report ->
                     if (report.envelopeId == envelopeId) {
-                        report.copy(remoteGatewayStatus = "Rust gateway pending")
+                        report.copy(remoteGatewayStatus = "Jirani Server pending")
                     } else {
                         report
                     }
@@ -328,6 +393,55 @@ object LocalFirstUiStore {
     }
 
     @Synchronized
+    fun receiveRelayBundle(
+        bundle: RelayBundle,
+        fromAlias: String,
+    ): Boolean {
+        val blockReason = RelayBundlePolicy.validateForRelay(bundle)
+        if (blockReason != null) {
+            _network.update { it.copy(lastTransferMessage = blockReason) }
+            return false
+        }
+
+        _network.update { current ->
+            val knownHashes = (current.receivedRelayBundles.map { it.bundle.bundleHash } +
+                current.pendingRelayBundles.map { it.bundle.bundleHash }).toSet()
+            if (bundle.bundleHash in knownHashes) {
+                val updatedInbox = current.receivedRelayBundles.map { item ->
+                    if (item.bundle.bundleHash == bundle.bundleHash &&
+                        fromAlias !in item.receivedFromAliases
+                    ) {
+                        item.copy(receivedFromAliases = item.receivedFromAliases + fromAlias)
+                    } else {
+                        item
+                    }
+                }
+                val peerCount = updatedInbox
+                    .firstOrNull { it.bundle.bundleHash == bundle.bundleHash }
+                    ?.peerCount ?: 1
+                current.copy(
+                    receivedRelayBundles = updatedInbox,
+                    lastTransferMessage = if (peerCount >= 2) {
+                        "Relay alert corroborated by $peerCount nearby peers."
+                    } else {
+                        "Relay bundle already known; duplicate ignored."
+                    },
+                )
+            } else {
+                current.copy(
+                    pendingRelayBundles = listOf(RelayBundleCarrierItem(bundle)) + current.pendingRelayBundles,
+                    remoteRelayBundles = listOf(bundle) + current.remoteRelayBundles,
+                    receivedRelayBundles = listOf(
+                        RelayBundleInboxItem(bundle = bundle, receivedFromAliases = listOf(fromAlias)),
+                    ) + current.receivedRelayBundles,
+                    lastTransferMessage = "Received relay alert from $fromAlias.",
+                )
+            }
+        }
+        return true
+    }
+
+    @Synchronized
     fun receiveRemoteGatewayReports(items: List<ReceivedReportItem>) {
         if (items.isEmpty()) return
 
@@ -339,10 +453,15 @@ object LocalFirstUiStore {
             } else {
                 current.copy(
                     receivedReports = newItems + current.receivedReports,
-                    lastTransferMessage = "Downloaded ${newItems.size} anonymized report(s) from the Rust gateway.",
+                    lastTransferMessage = "Downloaded ${newItems.size} anonymized report(s) from the Jirani Server.",
                 )
             }
         }
+    }
+
+    @Synchronized
+    fun receiveRemoteRelayBundles(bundles: List<RelayBundle>) {
+        bundles.forEach { receiveRelayBundle(it, "Jirani Server") }
     }
 
     fun shareNextReportToNearbyDevice(): TransferResult {
@@ -359,9 +478,37 @@ object LocalFirstUiStore {
     }
 
     @Synchronized
+    fun createNearbyRelayBundlesForNextBundle(): List<RelayBundle> {
+        val current = _network.value
+        val carrier = current.pendingRelayBundles.firstOrNull() ?: return emptyList()
+        if (RelayBundlePolicy.validateForRelay(carrier.bundle) != null) return emptyList()
+
+        val targets = current.trustedNearbyDevices
+            .filter { it.deviceAlias !in carrier.deliveredDeviceAliases }
+            .filter { it.deviceAlias !in carrier.sendingDeviceAliases }
+            .take(1)
+
+        if (targets.isEmpty()) return emptyList()
+
+        val aliases = targets.map { it.deviceAlias }
+        _network.update { state ->
+            state.copy(
+                pendingRelayBundles = state.pendingRelayBundles.map { pending ->
+                    if (pending.bundle.bundleHash == carrier.bundle.bundleHash) {
+                        pending.copy(sendingDeviceAliases = (pending.sendingDeviceAliases + aliases).distinct())
+                    } else {
+                        pending
+                    }
+                },
+            )
+        }
+        return targets.map { carrier.bundle }
+    }
+
+    @Synchronized
     fun createNearbyReportPacketsForNextReport(): List<WireReportPacket> {
         val current = _network.value
-        val envelope = current.pendingEnvelopes.firstOrNull()
+        val envelope = current.pendingEnvelopes.firstOrNull { it.canUseNearbyConnections() }
             ?: return emptyList()
         val remainingSlots = envelope.maxUniqueDevices - envelope.deliveredDeviceAliases.size
         if (remainingSlots <= 0 || envelope.isStale()) return emptyList()
@@ -471,6 +618,46 @@ object LocalFirstUiStore {
         }
     }
 
+    @Synchronized
+    fun markNearbyRelayBundlesSent(bundles: List<RelayBundle>) {
+        if (bundles.isEmpty()) return
+        val hashes = bundles.map { it.bundleHash }.toSet()
+        _network.update { current ->
+            val updated = current.pendingRelayBundles.map { carrier ->
+                if (carrier.bundle.bundleHash !in hashes) {
+                    carrier
+                } else {
+                    carrier.copy(
+                        deliveredDeviceAliases = (carrier.deliveredDeviceAliases + carrier.sendingDeviceAliases).distinct(),
+                        sendingDeviceAliases = emptyList(),
+                    )
+                }
+            }
+            current.copy(
+                pendingRelayBundles = updated.filter { it.deliveredDeviceAliases.size < 5 },
+                lastTransferMessage = "Relayed ${bundles.size} public safety bundle(s) to nearby devices.",
+            )
+        }
+    }
+
+    @Synchronized
+    fun markNearbyRelayBundlesFailed(bundles: List<RelayBundle>) {
+        if (bundles.isEmpty()) return
+        val hashes = bundles.map { it.bundleHash }.toSet()
+        _network.update { current ->
+            current.copy(
+                pendingRelayBundles = current.pendingRelayBundles.map { carrier ->
+                    if (carrier.bundle.bundleHash in hashes) {
+                        carrier.copy(sendingDeviceAliases = emptyList())
+                    } else {
+                        carrier
+                    }
+                },
+                lastTransferMessage = "Relay bundle handoff did not complete. Jirani will retry later.",
+            )
+        }
+    }
+
     private fun shareReportToNearbyDevices(
         envelopeId: String,
         recordReceivedReports: Boolean = true,
@@ -529,6 +716,15 @@ object LocalFirstUiStore {
         _securitySettings.update { it.copy(nearbySharingEnabled = enabled) }
     }
 
+    fun updateActiveRelayModeEnabled(enabled: Boolean) {
+        _securitySettings.update { it.copy(activeRelayModeEnabled = enabled) }
+        if (enabled) {
+            startRelayForegroundService()
+        } else {
+            stopRelayForegroundService()
+        }
+    }
+
     fun updateLanguage(language: AppLanguage) {
         _securitySettings.update { it.copy(language = language) }
     }
@@ -543,6 +739,13 @@ object LocalFirstUiStore {
         SyncAudienceTier.TrustedVerifier -> "Ready for nearby trusted verifier"
         SyncAudienceTier.CommunityAlert -> "Ready for community alert sharing"
     }
+
+    private fun SyncEnvelope.canUseNearbyConnections(): Boolean =
+        !isStale() &&
+            SyncTransport.NearbyConnections in allowedTransports &&
+            audienceTier != SyncAudienceTier.SurvivorSupportOnly &&
+            syncState != SyncState.LocalHold &&
+            deliveredDeviceAliases.size < maxUniqueDevices
 
     private fun SyncEnvelope.toSubmittedStatus(
         status: String,
@@ -606,12 +809,36 @@ object LocalFirstUiStore {
             message = message,
         )
 
+    private fun mergeCarrierItems(
+        primary: List<RelayBundleCarrierItem>,
+        secondary: List<RelayBundleCarrierItem>,
+    ): List<RelayBundleCarrierItem> =
+        (primary + secondary).groupBy { it.bundle.bundleHash }.map { (_, items) ->
+            val first = items.first()
+            first.copy(
+                deliveredDeviceAliases = items.flatMap { it.deliveredDeviceAliases }.distinct(),
+                sendingDeviceAliases = emptyList(),
+            )
+        }
+
+    private fun mergeInboxItems(
+        primary: List<RelayBundleInboxItem>,
+        secondary: List<RelayBundleInboxItem>,
+    ): List<RelayBundleInboxItem> =
+        (primary + secondary).groupBy { it.bundle.bundleHash }.map { (_, items) ->
+            val first = items.first()
+            first.copy(receivedFromAliases = items.flatMap { it.receivedFromAliases }.distinct())
+        }
+
     private fun encodeNetworkSnapshot(snapshot: NetworkSnapshot): String =
         JSONObject()
             .put("queueItems", JSONArray(snapshot.queueItems.map { it.toJson() }))
             .put("pendingEnvelopes", JSONArray(snapshot.pendingEnvelopes.map { it.copy(sendingDeviceAliases = emptyList()).toJson() }))
             .put("remoteGatewayEnvelopes", JSONArray(snapshot.remoteGatewayEnvelopes.map { it.copy(sendingDeviceAliases = emptyList()).toJson() }))
+            .put("pendingRelayBundles", JSONArray(snapshot.pendingRelayBundles.map { it.copy(sendingDeviceAliases = emptyList()).toJson() }))
+            .put("remoteRelayBundles", JSONArray(snapshot.remoteRelayBundles.map { it.toJson() }))
             .put("receivedReports", JSONArray(snapshot.receivedReports.map { it.toJson() }))
+            .put("receivedRelayBundles", JSONArray(snapshot.receivedRelayBundles.map { it.toJson() }))
             .put("submittedReports", JSONArray(snapshot.submittedReports.map { it.toJson() }))
             .put("lastTransferMessage", snapshot.lastTransferMessage)
             .toString()
@@ -620,6 +847,7 @@ object LocalFirstUiStore {
         JSONObject()
             .put("discreetCode", settings.discreetCode)
             .put("nearbySharingEnabled", settings.nearbySharingEnabled)
+            .put("activeRelayModeEnabled", settings.activeRelayModeEnabled)
             .put("language", settings.language.name)
             .put("themeMode", settings.themeMode.name)
             .toString()
@@ -629,9 +857,26 @@ object LocalFirstUiStore {
         return SecuritySettings(
             discreetCode = json.optString("discreetCode", "2468="),
             nearbySharingEnabled = json.optBoolean("nearbySharingEnabled", true),
+            activeRelayModeEnabled = json.optBoolean("activeRelayModeEnabled", false),
             language = json.optEnum("language", AppLanguage.English),
             themeMode = json.optEnum("themeMode", AppThemeMode.Light),
         )
+    }
+
+    fun isActiveRelayModeEnabled(): Boolean =
+        _securitySettings.value.activeRelayModeEnabled
+
+    private fun startRelayForegroundService() {
+        val context = appContext ?: return
+        ContextCompat.startForegroundService(
+            context,
+            Intent(context, RelayForegroundService::class.java),
+        )
+    }
+
+    private fun stopRelayForegroundService() {
+        val context = appContext ?: return
+        context.stopService(Intent(context, RelayForegroundService::class.java))
     }
 
     private fun decodeNetworkSnapshot(encoded: String): NetworkSnapshot {
@@ -644,9 +889,12 @@ object LocalFirstUiStore {
             queueItems = queueItems,
             pendingEnvelopes = pendingEnvelopes,
             remoteGatewayEnvelopes = remoteGatewayEnvelopes,
+            pendingRelayBundles = json.optJSONArray("pendingRelayBundles").toList { it.toRelayBundleCarrierItem() },
+            remoteRelayBundles = json.optJSONArray("remoteRelayBundles").toList { it.toRelayBundle() },
             receivedReports = json.optJSONArray("receivedReports").toList { it.toReceivedReportItem() },
+            receivedRelayBundles = json.optJSONArray("receivedRelayBundles").toList { it.toRelayBundleInboxItem() },
             submittedReports = json.optJSONArray("submittedReports").toList { it.toSubmittedReportStatus() },
-            lastTransferMessage = json.optString("lastTransferMessage").ifBlank { null },
+            lastTransferMessage = json.optString("lastTransferMessage").normalizeServerLabel().ifBlank { null },
         )
     }
 
@@ -680,8 +928,9 @@ object LocalFirstUiStore {
             deliveredCount = optInt("deliveredCount"),
             maxDevices = optInt("maxDevices", 5),
             stale = optBoolean("stale"),
-            status = optString("status"),
-            remoteGatewayStatus = optString("remoteGatewayStatus", "Waiting for Rust gateway"),
+            status = optString("status").normalizeServerLabel(),
+            remoteGatewayStatus = optString("remoteGatewayStatus", "Waiting for Jirani Server")
+                .normalizeServerLabel(),
         )
 
     private fun ReceivedReportItem.toJson(): JSONObject =
@@ -708,6 +957,79 @@ object LocalFirstUiStore {
             submittedAtEpochSeconds = optLong("submittedAtEpochSeconds"),
             observedRisk = optString("observedRisk"),
             verificationStatus = optEnum("verificationStatus", VerificationStatus.PendingVerification),
+            sensitivity = optEnum("sensitivity", ReportSensitivity.Community),
+        )
+
+    private fun RelayBundleCarrierItem.toJson(): JSONObject =
+        JSONObject()
+            .put("bundle", bundle.toJson())
+            .put("deliveredDeviceAliases", JSONArray(deliveredDeviceAliases))
+
+    private fun JSONObject.toRelayBundleCarrierItem(): RelayBundleCarrierItem =
+        RelayBundleCarrierItem(
+            bundle = optJSONObject("bundle")?.toRelayBundle() ?: toRelayBundle(),
+            deliveredDeviceAliases = optJSONArray("deliveredDeviceAliases").toStringList(),
+        )
+
+    private fun RelayBundleInboxItem.toJson(): JSONObject =
+        JSONObject()
+            .put("bundle", bundle.toJson())
+            .put("receivedFromAliases", JSONArray(receivedFromAliases))
+
+    private fun JSONObject.toRelayBundleInboxItem(): RelayBundleInboxItem =
+        RelayBundleInboxItem(
+            bundle = optJSONObject("bundle")?.toRelayBundle() ?: toRelayBundle(),
+            receivedFromAliases = optJSONArray("receivedFromAliases").toStringList(),
+        )
+
+    private fun RelayBundle.toJson(): JSONObject =
+        JSONObject()
+            .put("bundleId", bundleId)
+            .put("publicHeader", publicHeader.toJson())
+            .put("encryptedPayload", encryptedPayload)
+            .put("payloadHash", payloadHash)
+            .put("bundleHash", bundleHash)
+            .put("expiresAtEpochSeconds", expiresAtEpochSeconds)
+
+    private fun JSONObject.toRelayBundle(): RelayBundle =
+        RelayBundle(
+            bundleId = optString("bundleId"),
+            publicHeader = optJSONObject("publicHeader")?.toRelayPublicHeader() ?: RelayPublicHeader(
+                alertType = "unknown",
+                generalArea = "general area withheld",
+                timeWindow = "time window not specified",
+                riskLevel = "Reported",
+                message = "details withheld",
+                verificationStatus = VerificationStatus.PendingVerification,
+                audienceTier = SyncAudienceTier.TrustedVerifier,
+                sensitivity = ReportSensitivity.Community,
+            ),
+            encryptedPayload = optString("encryptedPayload"),
+            payloadHash = optString("payloadHash"),
+            bundleHash = optString("bundleHash"),
+            expiresAtEpochSeconds = optLong("expiresAtEpochSeconds"),
+        )
+
+    private fun RelayPublicHeader.toJson(): JSONObject =
+        JSONObject()
+            .put("alertType", alertType)
+            .put("generalArea", generalArea)
+            .put("timeWindow", timeWindow)
+            .put("riskLevel", riskLevel)
+            .put("message", message)
+            .put("verificationStatus", verificationStatus.name)
+            .put("audienceTier", audienceTier.name)
+            .put("sensitivity", sensitivity.name)
+
+    private fun JSONObject.toRelayPublicHeader(): RelayPublicHeader =
+        RelayPublicHeader(
+            alertType = optString("alertType"),
+            generalArea = optString("generalArea"),
+            timeWindow = optString("timeWindow"),
+            riskLevel = optString("riskLevel", "Reported"),
+            message = optString("message"),
+            verificationStatus = optEnum("verificationStatus", VerificationStatus.PendingVerification),
+            audienceTier = optEnum("audienceTier", SyncAudienceTier.TrustedVerifier),
             sensitivity = optEnum("sensitivity", ReportSensitivity.Community),
         )
 
@@ -798,6 +1120,11 @@ object LocalFirstUiStore {
 
     private inline fun <reified T : Enum<T>> JSONObject.optEnum(key: String, fallback: T): T =
         runCatching { enumValueOf<T>(optString(key)) }.getOrDefault(fallback)
+
+    private fun String.normalizeServerLabel(): String =
+        replace("Rust relay gateway", "Jirani Server")
+            .replace("Rust gateway", "Jirani Server")
+            .replace("Rust Gateway", "Jirani Server")
 
     private const val StoreName = "jirani_local_first_store"
     private const val NetworkSnapshotKey = "network_snapshot_v1"

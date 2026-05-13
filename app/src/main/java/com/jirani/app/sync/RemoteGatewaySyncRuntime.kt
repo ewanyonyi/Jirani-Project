@@ -3,6 +3,8 @@ package com.jirani.app.sync
 import com.jirani.app.BuildConfig
 import com.jirani.app.data.local.LocalFirstUiStore
 import com.jirani.app.data.local.ReceivedReportItem
+import com.jirani.app.data.local.RelayBundle
+import com.jirani.app.data.local.RelayBundlePolicy
 import com.jirani.app.data.local.RemoteGatewaySyncPolicy
 import com.jirani.app.data.local.ReportSensitivity
 import com.jirani.app.data.local.ReportingSyncPolicy
@@ -19,6 +21,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 object RemoteGatewaySyncRuntime {
@@ -35,7 +38,10 @@ object RemoteGatewaySyncRuntime {
         }
         scope.launch {
             LocalFirstUiStore.network.collect { snapshot ->
-                if (snapshot.remoteGatewayEnvelopes.isNotEmpty()) {
+                if (
+                    snapshot.remoteGatewayEnvelopes.isNotEmpty() ||
+                    snapshot.remoteRelayBundles.isNotEmpty()
+                ) {
                     uploadPendingReports()
                 }
             }
@@ -51,19 +57,45 @@ object RemoteGatewaySyncRuntime {
     private suspend fun uploadPendingReports() {
         if (uploading) return
         uploading = true
+        var shouldRetry = false
         try {
+            client.downloadRelayPublicKey()?.let { key ->
+                RelayBundlePolicy.configureGatewayPublicKey(key)
+            }
             LocalFirstUiStore.pendingRemoteGatewayEnvelopes().forEach { envelope ->
                 val result = client.upload(envelope)
                 if (result.uploaded) {
                     LocalFirstUiStore.markRemoteGatewayUploadSucceeded(envelope.envelopeId)
                 } else {
                     LocalFirstUiStore.markRemoteGatewayUploadFailed(envelope.envelopeId, result.message)
+                    shouldRetry = true
+                    delay(RetryRestMillis)
+                }
+            }
+            LocalFirstUiStore.pendingRemoteRelayBundles().forEach { bundle ->
+                val result = client.uploadRelayBundle(bundle)
+                if (result.uploaded) {
+                    LocalFirstUiStore.markRemoteRelayBundleUploadSucceeded(bundle.bundleHash)
+                } else {
+                    LocalFirstUiStore.markRemoteRelayBundleUploadFailed(result.message)
+                    shouldRetry = true
                     delay(RetryRestMillis)
                 }
             }
             LocalFirstUiStore.receiveRemoteGatewayReports(client.downloadAvailableReports())
+            LocalFirstUiStore.receiveRemoteRelayBundles(client.downloadAvailableRelayBundles())
         } finally {
             uploading = false
+        }
+        if (
+            shouldRetry &&
+            (LocalFirstUiStore.pendingRemoteGatewayEnvelopes().isNotEmpty() ||
+                LocalFirstUiStore.pendingRemoteRelayBundles().isNotEmpty())
+        ) {
+            scope.launch {
+                delay(RetryRestMillis)
+                uploadPendingReports()
+            }
         }
     }
 
@@ -88,7 +120,7 @@ class RemoteGatewayClient(
             if (!endpoint.isPrivateEnoughForGateway()) {
                 return@withContext RemoteGatewayUploadResult(
                     uploaded = false,
-                    message = "Remote Rust gateway must use HTTPS outside local emulator testing.",
+                    message = "Jirani Server must use HTTPS outside local emulator testing.",
                 )
             }
             val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
@@ -108,18 +140,18 @@ class RemoteGatewayClient(
                 if (code in 200..299 || code == HttpURLConnection.HTTP_CONFLICT) {
                     RemoteGatewayUploadResult(
                         uploaded = true,
-                        message = "Anonymized report uploaded to Rust gateway.",
+                        message = "Anonymized report uploaded to Jirani Server.",
                     )
                 } else {
                     RemoteGatewayUploadResult(
                         uploaded = false,
-                        message = "Rust gateway rejected the anonymized report with HTTP $code.",
+                        message = "Jirani Server rejected the anonymized report with HTTP $code.",
                     )
                 }
             } catch (error: IOException) {
                 RemoteGatewayUploadResult(
                     uploaded = false,
-                    message = "Rust gateway unavailable; anonymized report will retry later.",
+                    message = "Jirani Server unavailable or sync endpoint timed out; anonymized report will retry later.",
                 )
             } finally {
                 connection.disconnect()
@@ -147,6 +179,106 @@ class RemoteGatewayClient(
                 parseDownloadedReports(body)
             } catch (error: IOException) {
                 emptyList()
+            } finally {
+                connection.disconnect()
+            }
+        }
+
+    suspend fun uploadRelayBundle(bundle: RelayBundle): RemoteGatewayUploadResult =
+        withContext(Dispatchers.IO) {
+            RelayBundlePolicy.validateForRelay(bundle)?.let { reason ->
+                return@withContext RemoteGatewayUploadResult(uploaded = false, message = reason)
+            }
+
+            val endpoint = baseUrl.trimEnd('/') + "/relay/bundles"
+            if (!endpoint.isPrivateEnoughForGateway()) {
+                return@withContext RemoteGatewayUploadResult(
+                    uploaded = false,
+                    message = "Jirani Server must use HTTPS outside local emulator testing.",
+                )
+            }
+            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                connectTimeout = TimeoutMillis
+                readTimeout = TimeoutMillis
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                setRequestProperty("Accept", "application/json")
+                addPrivacyHeaders()
+            }
+
+            try {
+                val body = RelayBundleJsonCodec.encode(bundle).toString().toByteArray(Charsets.UTF_8)
+                connection.outputStream.use { it.write(body) }
+                val code = connection.responseCode
+                if (code in 200..299 || code == HttpURLConnection.HTTP_CONFLICT) {
+                    RemoteGatewayUploadResult(
+                        uploaded = true,
+                        message = "Relay bundle uploaded to Jirani Server.",
+                    )
+                } else {
+                    RemoteGatewayUploadResult(
+                        uploaded = false,
+                        message = "Jirani Server rejected the relay bundle with HTTP $code.",
+                    )
+                }
+            } catch (error: IOException) {
+                RemoteGatewayUploadResult(
+                    uploaded = false,
+                    message = "Jirani Server relay endpoint unavailable or timed out; bundle will retry later.",
+                )
+            } finally {
+                connection.disconnect()
+            }
+        }
+
+    suspend fun downloadAvailableRelayBundles(): List<RelayBundle> =
+        withContext(Dispatchers.IO) {
+            val endpoint = baseUrl.trimEnd('/') + "/relay/bundles"
+            if (!endpoint.isPrivateEnoughForGateway()) {
+                return@withContext emptyList()
+            }
+            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = TimeoutMillis
+                readTimeout = TimeoutMillis
+                setRequestProperty("Accept", "application/json")
+                addPrivacyHeaders()
+            }
+
+            try {
+                val code = connection.responseCode
+                if (code !in 200..299) return@withContext emptyList()
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                parseDownloadedRelayBundles(body)
+            } catch (error: IOException) {
+                emptyList()
+            } finally {
+                connection.disconnect()
+            }
+        }
+
+    suspend fun downloadRelayPublicKey(): String? =
+        withContext(Dispatchers.IO) {
+            val endpoint = baseUrl.trimEnd('/') + "/relay/public-key"
+            if (!endpoint.isPrivateEnoughForGateway()) {
+                return@withContext null
+            }
+            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = TimeoutMillis
+                readTimeout = TimeoutMillis
+                setRequestProperty("Accept", "application/json")
+                addPrivacyHeaders()
+            }
+
+            try {
+                val code = connection.responseCode
+                if (code !in 200..299) return@withContext null
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                JSONObject(body).optString("publicKey").ifBlank { null }
+            } catch (error: IOException) {
+                null
             } finally {
                 connection.disconnect()
             }
@@ -186,6 +318,23 @@ class RemoteGatewayClient(
         }
     }
 
+    private fun parseDownloadedRelayBundles(body: String): List<RelayBundle> {
+        val trimmed = body.trim()
+        if (trimmed.isBlank()) return emptyList()
+
+        val bundles = if (trimmed.startsWith("[")) {
+            JSONArray(trimmed)
+        } else {
+            JSONObject(trimmed).optJSONArray("bundles") ?: JSONArray()
+        }
+
+        return (0 until bundles.length()).mapNotNull { index ->
+            bundles.optJSONObject(index)
+                ?.let(RelayBundleJsonCodec::decode)
+                ?.takeIf { RelayBundlePolicy.validateForRelay(it) == null }
+        }
+    }
+
     private fun JSONObject.toReceivedReportItem(): ReceivedReportItem? {
         val payloadJson = optJSONObject("payload") ?: return null
         val payload = SanitizedReportPayload(
@@ -203,7 +352,7 @@ class RemoteGatewayClient(
         val envelopeId = optString("envelopeId").ifBlank { contentHash.take(12) }
         return ReceivedReportItem(
             packetId = "remote-$envelopeId",
-            fromAlias = "Rust gateway",
+            fromAlias = "Jirani Server",
             transport = SyncTransport.RemoteRustGateway,
             reportType = payload.reportType,
             generalArea = payload.generalArea,
@@ -228,7 +377,7 @@ class RemoteGatewayClient(
         setRequestProperty("User-Agent", StableUserAgent)
         setRequestProperty("Cache-Control", "no-store")
         setRequestProperty("Pragma", "no-cache")
-        setRequestProperty("X-Jirani-Privacy", "minimized-envelope-v1")
+        setRequestProperty("X-Jirani-Privacy", "minimized-envelope-v1 relay-bundle-v1")
         val token = BuildConfig.JIRANI_REMOTE_GATEWAY_TOKEN.trim()
         if (token.isNotEmpty()) {
             setRequestProperty("Authorization", "Bearer $token")

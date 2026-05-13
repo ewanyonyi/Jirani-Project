@@ -15,6 +15,7 @@ data class SettingsUiState(
     val code: String = "",
     val confirmCode: String = "",
     val nearbySharingEnabled: Boolean = true,
+    val activeRelayModeEnabled: Boolean = false,
     val language: AppLanguage = AppLanguage.English,
     val themeMode: AppThemeMode = AppThemeMode.Light,
     val message: String = "",
@@ -25,6 +26,7 @@ class SettingsViewModel : ViewModel() {
     val uiState = combine(_uiState, LocalFirstUiStore.securitySettings) { draft, settings ->
         draft.copy(
             nearbySharingEnabled = settings.nearbySharingEnabled,
+            activeRelayModeEnabled = settings.activeRelayModeEnabled,
             language = settings.language,
             themeMode = settings.themeMode,
         )
@@ -72,6 +74,19 @@ class SettingsViewModel : ViewModel() {
                     "Nearby sharing enabled."
                 } else {
                     "Nearby sharing paused. Reports stay queued on this phone."
+                },
+            )
+        }
+    }
+
+    fun updateActiveRelayMode(enabled: Boolean) {
+        LocalFirstUiStore.updateActiveRelayModeEnabled(enabled)
+        _uiState.update {
+            it.copy(
+                message = if (enabled) {
+                    "Active relay mode is on."
+                } else {
+                    "Active relay mode is off."
                 },
             )
         }

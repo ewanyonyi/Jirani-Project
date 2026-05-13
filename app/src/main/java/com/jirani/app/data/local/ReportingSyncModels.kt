@@ -100,12 +100,12 @@ object RemoteGatewaySyncPolicy {
         envelope.isStale(nowEpochSeconds) -> "Report is stale and will not be uploaded."
         envelope.payload.sensitivity == ReportSensitivity.SurvivorCentered -> "Survivor-centered reports stay out of remote gateway sync."
         envelope.audienceTier == SyncAudienceTier.SurvivorSupportOnly -> "Survivor-support reports require explicit private handoff."
-        SyncTransport.RemoteRustGateway !in envelope.allowedTransports -> "Remote gateway is not allowed for this report sensitivity."
+        SyncTransport.RemoteRustGateway !in envelope.allowedTransports -> "Jirani Server is not allowed for this report sensitivity."
         else -> null
     }
 
     fun uploadStatusLabel(envelope: SyncEnvelope): String =
-        remoteGatewayBlockReason(envelope) ?: "Waiting for Rust gateway"
+        remoteGatewayBlockReason(envelope) ?: "Waiting for Jirani Server"
 }
 
 data class NearbyJiraniDevice(
@@ -358,7 +358,7 @@ object ReportingDeviceTransfer {
         SyncTransport.WifiDirect -> "Wi-Fi Direct"
         SyncTransport.AndroidShareSheet -> "Android Sharesheet"
         SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
-        SyncTransport.RemoteRustGateway -> "Rust gateway"
+        SyncTransport.RemoteRustGateway -> "Jirani Server"
     }
 }
 

@@ -160,7 +160,7 @@ Supported movement paths:
 - **Wi-Fi Direct:** direct local transfer without internet.
 - **Android Sharesheet:** explicit user-driven handoff to a trusted app or contact.
 - **QR or encrypted file:** small sensitive payloads, especially survivor-centered handoff.
-- **Optional Rust gateway:** aggregated, minimized analytics only when a community opts in.
+- **Optional Jirani Server:** aggregated, minimized analytics only when a community opts in.
 
 ## D. Community Agreement Records
 
@@ -338,7 +338,7 @@ The capstone idea brief also defines operating constraints. Jirani addresses the
 | **Latency vs resilience** | Delayed sync is acceptable in exchange for offline operation. |
 | **Battery vs connectivity** | Nearby discovery should be duty-cycled in production. |
 | **Native vs cross-platform** | Kotlin + Jetpack Compose is preferred for Android performance and access to local sharing APIs. |
-| **Local-first vs analytics** | Local participation works without the optional Rust gateway. |
+| **Local-first vs analytics** | Local participation works without the optional Jirani Server. |
 
 ---
 
@@ -362,7 +362,7 @@ Future directions include:
 - encrypted QR/file export;
 - trusted reviewer workflows;
 - local-language expansion;
-- optional Rust gateway for minimized analytics;
+- optional Jirani Server for minimized analytics;
 - context-specific modules for different communities.
 
 ---

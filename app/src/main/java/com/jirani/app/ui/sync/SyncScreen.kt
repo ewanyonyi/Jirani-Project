@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jirani.app.data.local.ReceivedReportItem
+import com.jirani.app.data.local.RelayBundle
+import com.jirani.app.data.local.RelayBundleInboxItem
 import com.jirani.app.data.local.SubmittedReportStatus
 import com.jirani.app.data.local.SyncTransport
 import com.jirani.app.sync.NearbySyncRuntime
@@ -108,6 +110,12 @@ fun SyncScreen(
             scanning = scan.scanning,
             statusMessage = scan.statusMessage,
         )
+        RelayShieldPanel(
+            pendingCount = network.pendingRelayBundles.size,
+            carriedCount = network.receivedRelayBundles.size,
+            relayItems = network.receivedRelayBundles,
+            pendingBundles = network.pendingRelayBundles.map { it.bundle },
+        )
         network.lastTransferMessage?.let {
             SyncStatusCard(
                 body = it,
@@ -116,6 +124,63 @@ fun SyncScreen(
         SubmittedReportList(network.submittedReports)
         if (network.receivedReports.isNotEmpty()) {
             ReceivedReportList(network.receivedReports)
+        }
+    }
+}
+
+@Composable
+private fun RelayShieldPanel(
+    pendingCount: Int,
+    carriedCount: Int,
+    relayItems: List<RelayBundleInboxItem>,
+    pendingBundles: List<RelayBundle>,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("Relay Shield", fontWeight = FontWeight.SemiBold)
+            Text(
+                "$pendingCount waiting - $carriedCount carried",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            val displayItems = relayItems.ifEmpty {
+                pendingBundles.map { bundle -> RelayBundleInboxItem(bundle) }
+            }
+            if (displayItems.isEmpty()) {
+                Text(
+                    text = "No public relay alerts yet.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                displayItems.take(3).forEachIndexed { index, item ->
+                    val bundle = item.bundle
+                    if (index > 0) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(bundle.publicHeader.alertType, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "${bundle.publicHeader.generalArea} - ${bundle.publicHeader.timeWindow} - ${bundle.publicHeader.riskLevel}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "${item.verificationLabel}: ${bundle.publicHeader.message}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -293,7 +358,7 @@ private fun SyncTransport.label(): String = when (this) {
     SyncTransport.WifiDirect -> "Wi-Fi Direct"
     SyncTransport.AndroidShareSheet -> "Android Sharesheet"
     SyncTransport.QrOrEncryptedFile -> "QR/encrypted file"
-    SyncTransport.RemoteRustGateway -> "Rust gateway"
+    SyncTransport.RemoteRustGateway -> "Jirani Server"
 }
 
 private fun Long.toReadableTime(): String =
