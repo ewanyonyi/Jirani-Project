@@ -1,0 +1,7 @@
+{
+    "kotlin.languageServer.enabled": true,
+    "gradle.java.home": "",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "editor.formatOnSave": true,
+    "kotlin.compiler.jvm.target": "1.8"
+}
