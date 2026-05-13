@@ -263,10 +263,13 @@ object LocalFirstUiStore {
         details: String,
     ): ReportSubmissionReceipt {
         val envelope = saveSafetyReport(reportType, generalLocation, details)
-        val message = if (_network.value.trustedNearbyDevices.isNotEmpty()) {
-            "Report submitted. Nearby delivery is starting."
-        } else {
-            "Report submitted. No trusted nearby device available yet; scanning will keep it ready to send."
+        val message = when {
+            !envelope.canUseNearbyConnections() ->
+                "Report submitted. This private safety report stays local; use explicit private handoff only."
+            _network.value.trustedNearbyDevices.isNotEmpty() ->
+                "Report submitted. Nearby delivery is starting."
+            else ->
+                "Report submitted. No trusted nearby device available yet; scanning will keep it ready to send."
         }
         _network.update { it.copy(lastTransferMessage = message) }
         return ReportSubmissionReceipt(
@@ -319,6 +322,9 @@ object LocalFirstUiStore {
     fun pendingRemoteRelayBundles(): List<RelayBundle> =
         _network.value.remoteRelayBundles
             .filter { RelayBundlePolicy.validateForRelay(it) == null }
+
+    fun hasPendingNearbyReports(): Boolean =
+        _network.value.pendingEnvelopes.any { it.canUseNearbyConnections() }
 
     @Synchronized
     fun markRemoteRelayBundleUploadSucceeded(bundleHash: String) {
@@ -502,7 +508,7 @@ object LocalFirstUiStore {
     @Synchronized
     fun createNearbyReportPacketsForNextReport(): List<WireReportPacket> {
         val current = _network.value
-        val envelope = current.pendingEnvelopes.firstOrNull()
+        val envelope = current.pendingEnvelopes.firstOrNull { it.canUseNearbyConnections() }
             ?: return emptyList()
         val remainingSlots = envelope.maxUniqueDevices - envelope.deliveredDeviceAliases.size
         if (remainingSlots <= 0 || envelope.isStale()) return emptyList()
@@ -733,6 +739,13 @@ object LocalFirstUiStore {
         SyncAudienceTier.TrustedVerifier -> "Ready for nearby trusted verifier"
         SyncAudienceTier.CommunityAlert -> "Ready for community alert sharing"
     }
+
+    private fun SyncEnvelope.canUseNearbyConnections(): Boolean =
+        !isStale() &&
+            SyncTransport.NearbyConnections in allowedTransports &&
+            audienceTier != SyncAudienceTier.SurvivorSupportOnly &&
+            syncState != SyncState.LocalHold &&
+            deliveredDeviceAliases.size < maxUniqueDevices
 
     private fun SyncEnvelope.toSubmittedStatus(
         status: String,

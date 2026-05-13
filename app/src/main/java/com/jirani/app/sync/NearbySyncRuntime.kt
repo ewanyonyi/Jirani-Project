@@ -39,7 +39,7 @@ object NearbySyncRuntime {
             onRelayBundlesSent = LocalFirstUiStore::markNearbyRelayBundlesSent,
             onRelayBundlesFailed = LocalFirstUiStore::markNearbyRelayBundlesFailed,
             hasWaitingReports = {
-                LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() ||
+                LocalFirstUiStore.hasPendingNearbyReports() ||
                     LocalFirstUiStore.network.value.pendingRelayBundles.isNotEmpty()
             },
         )
@@ -63,7 +63,7 @@ object NearbySyncRuntime {
         val currentScanner = requireScanner()
         currentScanner.makeAvailable()
         if (
-            LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() ||
+            LocalFirstUiStore.hasPendingNearbyReports() ||
             LocalFirstUiStore.network.value.pendingRelayBundles.isNotEmpty()
         ) {
             currentScanner.resumeDiscovery()
@@ -102,7 +102,7 @@ object NearbySyncRuntime {
 
         scope.launch {
             combine(LocalFirstUiStore.network, currentScanner.scan) { network, scan ->
-                (network.pendingEnvelopes.isNotEmpty() || network.pendingRelayBundles.isNotEmpty()) to
+                (LocalFirstUiStore.hasPendingNearbyReports() || network.pendingRelayBundles.isNotEmpty()) to
                     scan.connectedDevices.isNotEmpty()
             }.collect { (hasWaitingReports, hasConnectedDevices) ->
                 if (hasWaitingReports && hasConnectedDevices) {
@@ -115,7 +115,7 @@ object NearbySyncRuntime {
         scope.launch {
             combine(LocalFirstUiStore.network, currentScanner.scan) { network, scan ->
                 NetworkScanState(
-                    hasWaitingReports = network.pendingEnvelopes.isNotEmpty(),
+                    hasWaitingReports = LocalFirstUiStore.hasPendingNearbyReports(),
                     hasWaitingRelayBundles = network.pendingRelayBundles.isNotEmpty(),
                     hasConnectedDevices = scan.connectedDevices.isNotEmpty(),
                     scanning = scan.scanning,
@@ -142,7 +142,7 @@ object NearbySyncRuntime {
                     currentScanner.resumeDiscovery()
                     delay(DiscoveryBurstMillis)
                     if (
-                        (LocalFirstUiStore.network.value.pendingEnvelopes.isNotEmpty() ||
+                        (LocalFirstUiStore.hasPendingNearbyReports() ||
                             LocalFirstUiStore.network.value.pendingRelayBundles.isNotEmpty()) &&
                         currentScanner.scan.value.connectedDevices.isEmpty()
                     ) {
