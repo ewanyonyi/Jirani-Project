@@ -132,3 +132,10 @@ This monorepo should be treated as the main source of truth for future combined 
 Jirani is a prototype and capstone-style project. The Android app remains offline-first, and the backend gateway is optional infrastructure for hosted or partner-assisted sync experiments.
 
 Do not treat prototype server deployments, demo tokens, or sample configuration values as production-ready community infrastructure without a full security, privacy, and operational review.
+
+## Licensing
+
+The Jirani Project is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+
+This license ensures that the source code remains available to the community, especially when the software is used over a network (e.g., the backend sync gateway). It protects the project's integrity and ensures that improvements are shared back with the users.
+
